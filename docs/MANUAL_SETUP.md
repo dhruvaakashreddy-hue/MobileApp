@@ -101,6 +101,22 @@ Also replace, by hand:
 - `android/app/src/main/res/drawable/persona_*.xml` — placeholder avatars used
   as the notification large icon.
 
+## 5b. Profile photos: test the permission paths
+
+The camera and gallery need runtime permission on both platforms, and the usage
+strings are already in `Info.plist` / `AndroidManifest.xml`. What cannot be
+tested in a browser:
+
+- [ ] Take a photo — the system crop UI appears (`allowEditing`) and the result
+      is square.
+- [ ] Pick from the gallery on Android 13+ (READ_MEDIA_IMAGES) **and** on
+      Android 12 or older (READ_EXTERNAL_STORAGE) — these are different grants.
+- [ ] **Deny** camera permission, then tap "Take a photo": the app must show the
+      explanatory message, not hang or crash.
+- [ ] Cancel out of the picker — treated as a no-op, no error shown.
+- [ ] A very large photo (50MP phone camera) still saves quickly and the avatar
+      stays sharp.
+
 ## 6. Test on real devices
 
 The notification behaviour is the app, and none of it can be verified in a

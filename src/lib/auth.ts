@@ -30,6 +30,40 @@ export const STUB_OTP_CODE = '123456';
 /** Shown whenever a number fails validation, wherever that check happens. */
 export const INVALID_PHONE_MESSAGE = 'Please enter a valid phone number';
 
+export const INVALID_EMAIL_MESSAGE = 'Please enter a valid email address';
+export const NAME_REQUIRED_MESSAGE = 'Please enter your name';
+
+export const NAME_MAX_LENGTH = 40;
+
+/** Trims and collapses inner whitespace, so " a  b " becomes "a b". */
+export function normalizeName(raw: string): string {
+  return raw.trim().replace(/\s+/g, ' ').slice(0, NAME_MAX_LENGTH);
+}
+
+export function isValidName(raw: string): boolean {
+  const name = normalizeName(raw);
+  // At least one letter, so " 123 " or punctuation alone is not a name.
+  return name.length >= 2 && /\p{L}/u.test(name);
+}
+
+/**
+ * Deliberately permissive: the address is optional and unverified, so the only
+ * job here is catching an obvious typo, not policing RFC 5322.
+ */
+export function isValidEmail(raw: string): boolean {
+  const email = raw.trim();
+  if (email.length === 0 || email.length > 254) return false;
+  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(email);
+}
+
+/**
+ * A profile is complete once there is a name. Derived rather than stored as a
+ * flag, so it cannot drift out of sync with the actual data.
+ */
+export function isProfileComplete(user: AuthUser): boolean {
+  return !!user.displayName && user.displayName.trim().length > 0;
+}
+
 export type AuthMethod = 'phone' | 'guest';
 
 export interface AuthUser {

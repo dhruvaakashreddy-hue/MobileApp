@@ -24,6 +24,14 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Profile picture. iOS terminates the app if a permission is requested
+	     without a usage string, so all three are required. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Nudge uses your camera only if you choose to take a profile picture.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Nudge needs photo access only to let you pick a profile picture.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Nudge saves a photo to your library only if you ask it to.</string>
 	<!-- Return trip from Razorpay's hosted checkout (src/lib/deeplink.ts). -->
 	<key>CFBundleURLTypes</key>
 	<array>

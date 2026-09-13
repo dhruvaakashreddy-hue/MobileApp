@@ -72,4 +72,17 @@
     <!-- Lets the scheduled queue survive a reboot. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Profile picture: taking one, and reading one from the gallery.
+         READ_MEDIA_IMAGES is the Android 13+ replacement for the storage
+         permission, which is why both are declared with a maxSdkVersion split. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- The camera is optional: a device without one can still pick from the
+         gallery, so this must not narrow Play Store eligibility. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>

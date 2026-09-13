@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ImpactStyle } from '@capacitor/haptics';
 import { useApp } from '../state/AppContext';
-import { Card, IconButton, Screen } from '../components/ui';
+import { Card, Screen } from '../components/ui';
+import { Avatar } from '../components/Avatar';
 import { formatCountdown, formatTimeLabel, pickLine } from '../lib/scheduling';
 import { isNative, sendTestNudge } from '../lib/notifications';
 import { store } from '../lib/storage';
 
 export function Home() {
   const {
-    settings, stats, persona, nextFireAt, permission,
+    settings, stats, persona, nextFireAt, permission, session,
     setEnabled, buzz, showNudge,
   } = useApp();
   const navigate = useNavigate();
@@ -47,17 +48,30 @@ export function Home() {
   return (
     <Screen>
       <header className="flex items-center justify-between pt-3 pb-6">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
-            Nudge
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-bold uppercase tracking-[0.2em] text-white/40">
+            {session?.user.displayName
+              ? `Hey, ${session.user.displayName.split(' ')[0]}`
+              : 'Nudge'}
           </p>
           <h1 className="font-display text-3xl tracking-tight">
             {settings.enabled ? 'Armed & annoying' : 'Currently silent'}
           </h1>
         </div>
-        <IconButton label="Settings" onClick={() => navigate('/settings')}>
-          ⚙️
-        </IconButton>
+        <button
+          onClick={() => {
+            buzz();
+            navigate('/settings');
+          }}
+          aria-label="Settings and profile"
+          className="shrink-0 rounded-full transition active:scale-95"
+        >
+          <Avatar
+            photo={session?.user.photoUrl ?? null}
+            name={session?.user.displayName ?? null}
+            size={44}
+          />
+        </button>
       </header>
 
       {blocked && (

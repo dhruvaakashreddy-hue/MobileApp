@@ -13,11 +13,13 @@ import { Settings } from './screens/Settings';
 import { Paywall } from './screens/Paywall';
 import { Onboarding } from './screens/Onboarding';
 import { Login } from './screens/Login';
+import { ProfileSetup } from './screens/ProfileSetup';
 import { isNative } from './lib/notifications';
 import { useBackButton } from './lib/useBackButton';
 
 function Routed() {
-  const { ready, session, settings, activeNudge, dismissNudge } = useApp();
+  const { ready, session, profileComplete, settings, activeNudge, dismissNudge } =
+    useApp();
   const location = useLocation();
 
   // Back closes the nudge card before it touches navigation.
@@ -55,8 +57,24 @@ function Routed() {
     return <Navigate to="/login" replace />;
   }
 
-  // Once past sign-in, first launch goes through onboarding.
-  if (session && !settings.onboarded && location.pathname !== '/onboarding') {
+  // A signed-in user sets up their profile once, before anything else.
+  // Guests are exempt: they deliberately chose not to hand over details, so
+  // demanding a name immediately after would contradict that. They can still
+  // set one later from Settings.
+  const needsProfile =
+    !!session && session.user.method !== 'guest' && !profileComplete;
+
+  if (needsProfile && location.pathname !== '/profile') {
+    return <Navigate to="/profile" replace />;
+  }
+
+  // Once past sign-in and profile, first launch goes through onboarding.
+  if (
+    session &&
+    !needsProfile &&
+    !settings.onboarded &&
+    location.pathname !== '/onboarding'
+  ) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -78,6 +96,8 @@ function Routed() {
         <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/profile" element={<ProfileSetup />} />
+          <Route path="/profile/edit" element={<ProfileSetup mode="edit" />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/personas" element={<Personas />} />
           <Route path="/settings" element={<Settings />} />

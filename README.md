@@ -74,6 +74,21 @@ Preferences, and on resume `reconcileDelivered()` credits every planned nudge
 whose fire time has passed — so the counter and the streak are right even if you
 never open the app while one arrives.
 
+### Profile
+
+After a first sign-in, users set a name (required), an optional email, and a
+picture — one of 16 presets, a camera shot, or something from the gallery.
+
+Presets are stored as an id (`preset:unicorn`) and rendered from a gradient and
+emoji, so a chosen avatar costs a few bytes rather than a base64 blob. A custom
+photo is centre-cropped and re-encoded to a 256px JPEG before storage
+(`src/lib/image.ts`) — Preferences is built for small values, and a phone
+camera produces several MB, so this bound is not optional.
+
+Guests skip the mandatory profile: they explicitly declined to hand over
+details, and demanding a name straight afterwards would contradict that. They
+can still set one from Settings.
+
 ### Sound
 
 Each persona has its own notification sound. When a nudge is delivered to a
@@ -91,6 +106,7 @@ src/
   data/personas.ts     90 in-character lines across 3 personas, 6 categories
   lib/
     auth.ts            phone OTP — stubbed, see docs/AUTH_SETUP.md
+    image.ts           profile photo capture + bounded re-encode
     sound.ts           in-app nudge audio
     scheduling.ts      pure time maths (no side effects)
     notifications.ts   scheduling, channels, listeners, reconciliation
@@ -98,7 +114,8 @@ src/
     billing.ts         subscription — stubbed, see docs/BILLING_DECISION.md
     deeplink.ts        Razorpay return trip
   state/AppContext.tsx single source of truth
-  screens/             Login, Home, Personas, Settings, Paywall, Onboarding
+  screens/             Login, ProfileSetup, Home, Personas, Settings,
+                       Paywall, Onboarding
   components/          UI primitives + the animated nudge card
 api/                   minimal Razorpay server (not deployed)
 docs/                  the decisions and manual steps left for you

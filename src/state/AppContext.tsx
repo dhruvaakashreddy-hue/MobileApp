@@ -37,8 +37,10 @@ import { registerDeepLinks } from '../lib/deeplink';
 import {
   activeProvider as authProvider,
   guestSession,
+  isProfileComplete,
   sessionStore,
   type AuthSession,
+  type AuthUser,
   type PhoneChallenge,
 } from '../lib/auth';
 import {
@@ -47,6 +49,12 @@ import {
   restorePurchases,
   unlockPremium,
 } from '../lib/billing';
+
+export interface ProfilePatch {
+  displayName: string;
+  email: string | null;
+  photoUrl: string | null;
+}
 
 interface AppState {
   ready: boolean;
@@ -62,6 +70,8 @@ interface AppState {
 
   sendPhoneCode: (phoneE164: string) => Promise<PhoneChallenge>;
   signInWithPhone: (challenge: PhoneChallenge, code: string) => Promise<void>;
+  saveProfile: (patch: ProfilePatch) => Promise<void>;
+  profileComplete: boolean;
   continueAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
 
@@ -323,6 +333,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await persistSession(guestSession());
   }, [persistSession]);
 
+  const saveProfile = useCallback(
+    async (patch: ProfilePatch) => {
+      setSession((current) => {
+        if (!current) return current;
+        const user: AuthUser = { ...current.user, ...patch };
+        const next: AuthSession = { ...current, user };
+        // Persist outside the updater so React's strict-mode double invoke
+        // cannot write twice.
+        void sessionStore.set(next);
+        return next;
+      });
+    },
+    [],
+  );
+
   const signOut = useCallback(async () => {
     await authProvider.signOut();
     await sessionStore.clear();
@@ -343,6 +368,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       activeNudge,
       sendPhoneCode,
       signInWithPhone,
+      saveProfile,
+      profileComplete: session ? isProfileComplete(session.user) : false,
       continueAsGuest,
       signOut,
       updateSettings,
@@ -360,7 +387,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       ready, session, settings, stats, premium, premiumActive, permission,
-      nextFireAt, activeNudge, sendPhoneCode, signInWithPhone,
+      nextFireAt, activeNudge, sendPhoneCode, signInWithPhone, saveProfile,
       continueAsGuest, signOut, updateSettings, setEnabled, selectPersona,
       toggleCategory, askPermission, completeOnboarding, buyPremium, restore,
       buzz, isPersonaLocked,

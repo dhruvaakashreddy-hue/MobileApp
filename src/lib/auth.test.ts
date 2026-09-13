@@ -2,6 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   COUNTRIES,
+  isProfileComplete,
+  isValidEmail,
+  isValidName,
+  normalizeName,
   formatE164ForDisplay,
   formatNationalNumber,
   isValidE164,
@@ -137,5 +141,66 @@ describe('helpers', () => {
 
   it('formats E.164 back for display', () => {
     assert.equal(formatE164ForDisplay('+919876543210'), '+91 98765 43210');
+  });
+});
+
+describe('name validation (required)', () => {
+  it('rejects empty, whitespace and single characters', () => {
+    for (const n of ['', '   ', 'a', ' x ']) {
+      assert.equal(isValidName(n), false, `"${n}" should be invalid`);
+    }
+  });
+
+  it('rejects input with no letters', () => {
+    for (const n of ['123', '...', '42', '!!!']) {
+      assert.equal(isValidName(n), false, `"${n}" should be invalid`);
+    }
+  });
+
+  it('accepts ordinary names, including non-Latin scripts', () => {
+    for (const n of ['Dhruva', 'Ana Sofía', "O'Brien", 'Jean-Luc', 'ध्रुव', '李雷']) {
+      assert.equal(isValidName(n), true, `"${n}" should be valid`);
+    }
+  });
+
+  it('trims and collapses whitespace', () => {
+    assert.equal(normalizeName('  Ada   Lovelace  '), 'Ada Lovelace');
+  });
+
+  it('caps absurdly long input', () => {
+    assert.equal(normalizeName('x'.repeat(200)).length, 40);
+  });
+});
+
+describe('email validation (optional)', () => {
+  it('rejects malformed addresses', () => {
+    for (const e of ['', 'nope', 'a@b', 'a@@b.com', 'a b@c.com', '@no.com', 'a@.com']) {
+      assert.equal(isValidEmail(e), false, `"${e}" should be invalid`);
+    }
+  });
+
+  it('accepts ordinary addresses', () => {
+    for (const e of ['a@b.com', 'first.last@sub.domain.co.in', 'x+tag@y.org']) {
+      assert.equal(isValidEmail(e), true, `"${e}" should be valid`);
+    }
+  });
+});
+
+describe('isProfileComplete', () => {
+  const base = {
+    id: 'u1',
+    method: 'phone' as const,
+    phoneNumber: '+919876543210',
+    email: null,
+    photoUrl: null,
+  };
+
+  it('is false without a name', () => {
+    assert.equal(isProfileComplete({ ...base, displayName: null }), false);
+    assert.equal(isProfileComplete({ ...base, displayName: '   ' }), false);
+  });
+
+  it('is true with a name, regardless of email or photo', () => {
+    assert.equal(isProfileComplete({ ...base, displayName: 'Ada' }), true);
   });
 });

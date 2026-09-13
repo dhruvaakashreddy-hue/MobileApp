@@ -13,6 +13,7 @@ import {
 import { formatExpiry, PRICE_LABEL, PRICE_PERIOD } from '../lib/billing';
 import { isNative } from '../lib/notifications';
 import { formatE164ForDisplay } from '../lib/auth';
+import { Avatar } from '../components/Avatar';
 
 export function Settings() {
   const {
@@ -61,26 +62,45 @@ export function Settings() {
 
       <SectionLabel>Account</SectionLabel>
       <Card className="mb-6">
-        <div className="flex items-center gap-3">
-          <span
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/10 text-2xl"
-            aria-hidden
-          >
-            {session?.user.method === 'phone' ? '📱' : '👤'}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold">
+        <button
+          onClick={() => {
+            buzz();
+            navigate('/profile/edit');
+          }}
+          className="tap flex w-full items-center gap-3 rounded-2xl text-left transition active:bg-white/5"
+        >
+          <Avatar
+            photo={session?.user.photoUrl ?? null}
+            name={session?.user.displayName ?? null}
+            size={52}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[16px] font-bold">
+              {session?.user.displayName ?? 'Guest'}
+            </span>
+            <span className="block truncate text-[13px] text-white/45">
               {session?.user.phoneNumber
                 ? formatE164ForDisplay(session.user.phoneNumber)
-                : 'Guest'}
-            </p>
-            <p className="text-[13px] text-white/45">
-              {session?.user.method === 'guest'
-                ? 'No account — everything stays on this phone'
-                : 'Signed in'}
-            </p>
-          </div>
-        </div>
+                : session?.user.email ??
+                  'No account — everything stays on this phone'}
+            </span>
+            {session?.user.email && session.user.phoneNumber && (
+              <span className="block truncate text-[13px] text-white/35">
+                {session.user.email}
+              </span>
+            )}
+          </span>
+          <span className="text-white/30" aria-hidden>›</span>
+        </button>
+        <button
+          onClick={() => {
+            buzz();
+            navigate('/profile/edit');
+          }}
+          className="tap mt-2 w-full rounded-2xl border border-white/10 px-4 text-sm font-semibold text-white/70 transition active:bg-white/5"
+        >
+          {session?.user.displayName ? 'Edit profile' : 'Set up your profile'}
+        </button>
         <button
           onClick={() => {
             buzz();
