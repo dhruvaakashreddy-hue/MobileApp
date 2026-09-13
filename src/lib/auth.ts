@@ -1,4 +1,10 @@
 import { Preferences } from '@capacitor/preferences';
+// The `/mobile` metadata validates against each country's real numbering plan
+// AND checks the number can actually receive an SMS, so landlines are rejected
+// too. Length checks alone are not validation: +91 1234567890 is ten digits and
+// entirely fake — no Indian mobile number starts with 1.
+import { isValidPhoneNumber } from 'libphonenumber-js/mobile';
+import type { CountryCode } from 'libphonenumber-js';
 
 /**
  * Authentication.
@@ -20,6 +26,9 @@ import { Preferences } from '@capacitor/preferences';
 
 /** The code the stub provider accepts. Shown on-screen while the stub is live. */
 export const STUB_OTP_CODE = '123456';
+
+/** Shown whenever a number fails validation, wherever that check happens. */
+export const INVALID_PHONE_MESSAGE = 'Please enter a valid phone number';
 
 export type AuthMethod = 'phone' | 'guest';
 
@@ -79,20 +88,24 @@ export interface Country {
   dial: string;
   name: string;
   flag: string;
-  /** Expected national number length, used for inline validation. */
-  digits: number;
+  /** ISO region code libphonenumber validates against. */
+  region: CountryCode;
+  /** Longest national number, used only to cap typing — not to validate. */
+  maxDigits: number;
+  /** Shown as the input placeholder. */
+  example: string;
 }
 
 /** India first: the app is priced in ₹ and aimed at that market initially. */
 export const COUNTRIES: Country[] = [
-  { code: 'IN', dial: '+91', name: 'India', flag: '🇮🇳', digits: 10 },
-  { code: 'US', dial: '+1', name: 'United States', flag: '🇺🇸', digits: 10 },
-  { code: 'GB', dial: '+44', name: 'United Kingdom', flag: '🇬🇧', digits: 10 },
-  { code: 'AE', dial: '+971', name: 'UAE', flag: '🇦🇪', digits: 9 },
-  { code: 'SG', dial: '+65', name: 'Singapore', flag: '🇸🇬', digits: 8 },
-  { code: 'AU', dial: '+61', name: 'Australia', flag: '🇦🇺', digits: 9 },
-  { code: 'CA', dial: '+1', name: 'Canada', flag: '🇨🇦', digits: 10 },
-  { code: 'DE', dial: '+49', name: 'Germany', flag: '🇩🇪', digits: 11 },
+  { code: 'IN', dial: '+91', name: 'India', flag: '🇮🇳', region: 'IN', maxDigits: 10, example: '98765 43210' },
+  { code: 'US', dial: '+1', name: 'United States', flag: '🇺🇸', region: 'US', maxDigits: 10, example: '415 555 2671' },
+  { code: 'GB', dial: '+44', name: 'United Kingdom', flag: '🇬🇧', region: 'GB', maxDigits: 10, example: '7911 123456' },
+  { code: 'AE', dial: '+971', name: 'UAE', flag: '🇦🇪', region: 'AE', maxDigits: 9, example: '50 123 4567' },
+  { code: 'SG', dial: '+65', name: 'Singapore', flag: '🇸🇬', region: 'SG', maxDigits: 8, example: '9123 4567' },
+  { code: 'AU', dial: '+61', name: 'Australia', flag: '🇦🇺', region: 'AU', maxDigits: 9, example: '412 345 678' },
+  { code: 'CA', dial: '+1', name: 'Canada', flag: '🇨🇦', region: 'CA', maxDigits: 10, example: '416 555 0123' },
+  { code: 'DE', dial: '+49', name: 'Germany', flag: '🇩🇪', region: 'DE', maxDigits: 11, example: '1512 3456789' },
 ];
 
 export const DEFAULT_COUNTRY = COUNTRIES[0];
@@ -106,16 +119,49 @@ export function toE164(country: Country, national: string): string {
   return `${country.dial}${normalizeNationalNumber(national)}`;
 }
 
+/**
+ * True only for a number that could actually receive an SMS in that country.
+ *
+ * This is a real numbering-plan check, not a digit count. It rejects numbers of
+ * the right length with an impossible prefix (+91 1234567890), repeated-digit
+ * placeholders (+91 0000000000), and landlines, which cannot receive the code.
+ */
 export function isValidNationalNumber(
   country: Country,
   national: string,
 ): boolean {
   const digits = normalizeNationalNumber(national);
-  // Exact length where we know it; otherwise accept a sane range so an
-  // unlisted numbering plan isn't wrongly rejected.
-  return country.digits > 0
-    ? digits.length === country.digits
-    : digits.length >= 6 && digits.length <= 14;
+  if (digits.length === 0) return false;
+  if (isRepeatedDigits(digits)) return false;
+  try {
+    return isValidPhoneNumber(`${country.dial}${digits}`, country.region);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Rejects 9999999999 and friends.
+ *
+ * libphonenumber calls these valid, and strictly it is right — they fit the
+ * numbering plan, and only sending an SMS proves a number is live. But they are
+ * what people type when they want to skip a form, so the trade is worth it: a
+ * real subscriber on an all-identical number sees one error message, while
+ * everyone else stops burning an SMS charge on an obvious placeholder.
+ */
+function isRepeatedDigits(digits: string): boolean {
+  return digits.length > 1 && new Set(digits).size === 1;
+}
+
+/** Same check, for a number already in E.164 form. */
+export function isValidE164(phone: string): boolean {
+  const national = phone.replace(/^\+\d{1,3}/, '');
+  if (isRepeatedDigits(normalizeNationalNumber(national))) return false;
+  try {
+    return isValidPhoneNumber(phone);
+  } catch {
+    return false;
+  }
 }
 
 /** Groups digits for readability as the user types, e.g. `98765 43210`. */
@@ -127,7 +173,7 @@ export function formatNationalNumber(
   if (country.code === 'IN') {
     return d.length > 5 ? `${d.slice(0, 5)} ${d.slice(5, 10)}` : d;
   }
-  if (country.digits === 10) {
+  if (country.maxDigits === 10) {
     if (d.length > 6) return `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6, 10)}`;
     if (d.length > 3) return `${d.slice(0, 3)} ${d.slice(3)}`;
     return d;
@@ -187,11 +233,14 @@ const stubProvider: AuthProvider = {
   id: 'stub',
 
   async sendPhoneCode(phoneE164: string): Promise<PhoneChallenge> {
+    // Validated here as well as in the UI. The screen's check is a courtesy to
+    // the user; this one is the actual gate — no code is ever issued for a
+    // number that could not receive it.
+    if (!isValidE164(phoneE164)) {
+      throw new AuthError(INVALID_PHONE_MESSAGE, 'invalid-phone');
+    }
     // Simulated latency, so the loading state is real during development.
     await delay(600);
-    if (!/^\+\d{7,15}$/.test(phoneE164)) {
-      throw new AuthError('That does not look like a valid number.', 'invalid-phone');
-    }
     return { verificationId: `stub-${Date.now()}`, phoneNumber: phoneE164 };
   },
 
@@ -290,6 +339,11 @@ const firebaseProvider: AuthProvider = {
   id: 'firebase',
 
   async sendPhoneCode(phoneE164: string): Promise<PhoneChallenge> {
+    // Check before the network call: an invalid number would be a wasted SMS
+    // charge and a slower error for the user.
+    if (!isValidE164(phoneE164)) {
+      throw new AuthError(INVALID_PHONE_MESSAGE, 'invalid-phone');
+    }
     const auth = await loadFirebaseAuth();
     const res = await auth.signInWithPhoneNumber({ phoneNumber: phoneE164 });
     if (!res.verificationId) {

@@ -22,6 +22,7 @@
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
     "framer-motion": "^13.2.0",
+    "libphonenumber-js": "^1.13.13",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3"

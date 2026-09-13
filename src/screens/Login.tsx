@@ -9,6 +9,7 @@ import {
   AuthError,
   COUNTRIES,
   DEFAULT_COUNTRY,
+  INVALID_PHONE_MESSAGE,
   STUB_OTP_CODE,
   activeProvider,
   formatE164ForDisplay,
@@ -21,8 +22,6 @@ import {
 } from '../lib/auth';
 
 const RESEND_SECONDS = 30;
-
-export const INVALID_PHONE_MESSAGE = 'Please enter a valid phone number';
 
 export function Login() {
   const { signInWithPhone, sendPhoneCode, continueAsGuest, buzz } = useApp();
@@ -162,7 +161,7 @@ export function Login() {
                     type="tel"
                     inputMode="numeric"
                     autoComplete="tel-national"
-                    placeholder={country.code === 'IN' ? '98765 43210' : 'Phone number'}
+                    placeholder={country.example}
                     value={formatNationalNumber(country, national)}
                     aria-invalid={!!error}
                     aria-describedby={error ? 'phone-error' : undefined}
