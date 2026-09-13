@@ -2,6 +2,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useEffect } from 'react';
 import { ImpactStyle } from '@capacitor/haptics';
 import { getPersona } from '../data/personas';
+import { playPersonaSound } from '../lib/sound';
 import { useApp } from '../state/AppContext';
 
 /**
@@ -10,12 +11,16 @@ import { useApp } from '../state/AppContext';
  * from the notification's `extra` payload.
  */
 export function NudgeOverlay() {
-  const { activeNudge, dismissNudge, buzz } = useApp();
+  const { activeNudge, dismissNudge, buzz, settings } = useApp();
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    if (activeNudge) buzz(ImpactStyle.Medium);
-  }, [activeNudge, buzz]);
+    if (!activeNudge) return;
+    buzz(ImpactStyle.Medium);
+    // The OS suppresses its own banner and sound while the app is open, so the
+    // card plays the persona's sound itself. Honours the Settings toggle.
+    playPersonaSound(getPersona(activeNudge.personaId), settings.soundEnabled);
+  }, [activeNudge, buzz, settings.soundEnabled]);
 
   // Hardware back / Escape should dismiss, like any other modal.
   useEffect(() => {

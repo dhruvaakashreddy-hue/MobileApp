@@ -12,6 +12,16 @@ blocks items 2 and 3.
 
 ---
 
+## 1b. Firebase sign-in
+
+The login screen works against a stub that sends no SMS. **→ `docs/AUTH_SETUP.md`**
+covers the Firebase project, the SHA fingerprints Google sign-in needs on
+Android, the reversed-client-ID URL scheme on iOS, and the APNs key phone auth
+needs. It also flags the account-deletion flow both stores require once you
+ship login.
+
+---
+
 ## 2. Razorpay account and KYC (only if you picked Option B, or for a web checkout)
 
 1. Create a Razorpay business account at https://razorpay.com.
@@ -120,7 +130,9 @@ browser:
 
 ## 8. Before any public release
 
-- [ ] Swap `stubProvider` out (see above).
+- [ ] Swap the billing `stubProvider` out (see above).
+- [ ] Swap the auth stub out, and add an in-app delete-account flow — both
+      stores require one once sign-in exists.
 - [ ] Replace the placeholder "Rate the app" URL in `src/screens/Settings.tsx`
       with your real store listing.
 - [ ] Generate a signing keystore for Android and configure release signing.

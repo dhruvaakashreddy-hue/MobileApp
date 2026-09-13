@@ -12,11 +12,12 @@ import { Personas } from './screens/Personas';
 import { Settings } from './screens/Settings';
 import { Paywall } from './screens/Paywall';
 import { Onboarding } from './screens/Onboarding';
+import { Login } from './screens/Login';
 import { isNative } from './lib/notifications';
 import { useBackButton } from './lib/useBackButton';
 
 function Routed() {
-  const { ready, settings, activeNudge, dismissNudge } = useApp();
+  const { ready, session, settings, activeNudge, dismissNudge } = useApp();
   const location = useLocation();
 
   // Back closes the nudge card before it touches navigation.
@@ -48,9 +49,20 @@ function Routed() {
     );
   }
 
-  // First launch always lands on onboarding.
-  if (!settings.onboarded && location.pathname !== '/onboarding') {
+  // Sign-in gates everything. A guest session counts as signed in, so
+  // "continue without an account" lands straight in the app.
+  if (!session && location.pathname !== '/login') {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Once past sign-in, first launch goes through onboarding.
+  if (session && !settings.onboarded && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
+  }
+
+  // Nothing to do on the login screen once a session exists.
+  if (session && location.pathname === '/login') {
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -65,6 +77,7 @@ function Routed() {
       >
         <Routes location={location}>
           <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/personas" element={<Personas />} />
           <Route path="/settings" element={<Settings />} />

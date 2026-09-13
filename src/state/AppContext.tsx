@@ -35,6 +35,13 @@ import {
 } from '../lib/notifications';
 import { registerDeepLinks } from '../lib/deeplink';
 import {
+  activeProvider as authProvider,
+  guestSession,
+  sessionStore,
+  type AuthSession,
+  type PhoneChallenge,
+} from '../lib/auth';
+import {
   checkSubscriptionStatus,
   isPremiumActive,
   restorePurchases,
@@ -43,6 +50,7 @@ import {
 
 interface AppState {
   ready: boolean;
+  session: AuthSession | null;
   settings: Settings;
   stats: Stats;
   premium: Premium;
@@ -51,6 +59,12 @@ interface AppState {
   persona: Persona;
   nextFireAt: number | null;
   activeNudge: NudgePayload | null;
+
+  sendPhoneCode: (phoneE164: string) => Promise<PhoneChallenge>;
+  signInWithPhone: (challenge: PhoneChallenge, code: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  continueAsGuest: () => Promise<void>;
+  signOut: () => Promise<void>;
 
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
   setEnabled: (enabled: boolean) => Promise<void>;
@@ -76,6 +90,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [permission, setPermission] = useState<PermissionState>('prompt');
   const [nextFireAt, setNextFireAt] = useState<number | null>(null);
   const [activeNudge, setActiveNudge] = useState<NudgePayload | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
 
   // Always-current settings for callbacks that outlive a render (listeners).
   const settingsRef = useRef(settings);
@@ -120,10 +135,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [s, st, perm] = await Promise.all([
+      const [s, st, perm, savedSession] = await Promise.all([
         store.getSettings(),
         store.getStats(),
         checkPermission(),
+        sessionStore.get(),
       ]);
       const prem = await checkSubscriptionStatus();
       if (cancelled) return;
@@ -133,6 +149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setStats(normalizeStats(st));
       applyPremium(prem);
       setPermission(perm);
+      setSession(savedSession);
       await syncFromSystem();
       if (!cancelled) setReady(true);
     })();
@@ -285,9 +302,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return isPremiumActive(p);
   }, [applyPremium]);
 
+  const persistSession = useCallback(async (next: AuthSession) => {
+    await sessionStore.set(next);
+    setSession(next);
+  }, []);
+
+  const sendPhoneCode = useCallback(
+    (phoneE164: string) => authProvider.sendPhoneCode(phoneE164),
+    [],
+  );
+
+  const signInWithPhone = useCallback(
+    async (challenge: PhoneChallenge, code: string) => {
+      const user = await authProvider.confirmPhoneCode(challenge, code);
+      await persistSession({ user, token: null, signedInAt: Date.now() });
+    },
+    [persistSession],
+  );
+
+  const signInWithGoogle = useCallback(async () => {
+    const user = await authProvider.signInWithGoogle();
+    await persistSession({ user, token: null, signedInAt: Date.now() });
+  }, [persistSession]);
+
+  const continueAsGuest = useCallback(async () => {
+    await persistSession(guestSession());
+  }, [persistSession]);
+
+  const signOut = useCallback(async () => {
+    await authProvider.signOut();
+    await sessionStore.clear();
+    setSession(null);
+  }, []);
+
   const value = useMemo<AppState>(
     () => ({
       ready,
+      session,
       settings,
       stats,
       premium,
@@ -296,6 +347,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       persona: getPersona(settings.personaId),
       nextFireAt,
       activeNudge,
+      sendPhoneCode,
+      signInWithPhone,
+      signInWithGoogle,
+      continueAsGuest,
+      signOut,
       updateSettings,
       setEnabled,
       selectPersona,
@@ -310,10 +366,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isPersonaLocked,
     }),
     [
-      ready, settings, stats, premium, premiumActive, permission, nextFireAt,
-      activeNudge, updateSettings, setEnabled, selectPersona, toggleCategory,
-      askPermission, completeOnboarding, buyPremium, restore, buzz,
-      isPersonaLocked,
+      ready, session, settings, stats, premium, premiumActive, permission,
+      nextFireAt, activeNudge, sendPhoneCode, signInWithPhone, signInWithGoogle,
+      continueAsGuest, signOut, updateSettings, setEnabled, selectPersona,
+      toggleCategory, askPermission, completeOnboarding, buyPremium, restore,
+      buzz, isPersonaLocked,
     ],
   );
 

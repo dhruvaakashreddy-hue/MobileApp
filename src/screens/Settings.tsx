@@ -12,11 +12,12 @@ import {
 } from '../data/personas';
 import { formatExpiry, PRICE_LABEL, PRICE_PERIOD } from '../lib/billing';
 import { isNative } from '../lib/notifications';
+import { formatE164ForDisplay } from '../lib/auth';
 
 export function Settings() {
   const {
-    settings, persona, premium, premiumActive,
-    updateSettings, toggleCategory, restore, buzz,
+    settings, persona, premium, premiumActive, session,
+    updateSettings, toggleCategory, restore, buzz, signOut,
   } = useApp();
   const navigate = useNavigate();
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null);
@@ -57,6 +58,43 @@ export function Settings() {
           </IconButton>
         }
       />
+
+      <SectionLabel>Account</SectionLabel>
+      <Card className="mb-6">
+        <div className="flex items-center gap-3">
+          <span
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/10 text-2xl"
+            aria-hidden
+          >
+            {session?.user.method === 'google'
+              ? '🔵'
+              : session?.user.method === 'phone'
+                ? '📱'
+                : '👤'}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-semibold">
+              {session?.user.phoneNumber
+                ? formatE164ForDisplay(session.user.phoneNumber)
+                : (session?.user.email ?? 'Guest')}
+            </p>
+            <p className="text-[13px] text-white/45">
+              {session?.user.method === 'guest'
+                ? 'No account — everything stays on this phone'
+                : 'Signed in'}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            buzz();
+            void signOut();
+          }}
+          className="tap mt-3 w-full rounded-2xl border border-white/10 px-4 text-sm font-semibold text-white/60 transition active:bg-white/5"
+        >
+          {session?.user.method === 'guest' ? 'Sign in to an account' : 'Sign out'}
+        </button>
+      </Card>
 
       <SectionLabel>Timing</SectionLabel>
       <Card className="mb-6">

@@ -116,10 +116,13 @@ function toWav(samples) {
   return buf;
 }
 
-// Android reads sounds from res/raw; iOS from the app bundle root.
+// Android reads sounds from res/raw; iOS from the app bundle root. The copy in
+// public/ is what the in-app persona card plays when a nudge lands while the
+// app is open — the OS does not sound its own notification in that case.
 const targets = [
   join(root, 'android/app/src/main/res/raw'),
   join(root, 'ios/App/App/sounds'),
+  join(root, 'public/sounds'),
 ];
 targets.forEach((d) => mkdirSync(d, { recursive: true }));
 
