@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ImpactStyle } from '@capacitor/haptics';
 import { useApp } from '../state/AppContext';
 import { Button, Screen } from '../components/ui';
 import { OtpInput } from '../components/OtpInput';
@@ -21,9 +22,10 @@ import {
 
 const RESEND_SECONDS = 30;
 
+export const INVALID_PHONE_MESSAGE = 'Please enter a valid phone number';
+
 export function Login() {
-  const { signInWithPhone, sendPhoneCode, signInWithGoogle, continueAsGuest, buzz } =
-    useApp();
+  const { signInWithPhone, sendPhoneCode, continueAsGuest, buzz } = useApp();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<'phone' | 'code'>('phone');
@@ -34,6 +36,7 @@ export function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const phoneRef = useRef<HTMLInputElement>(null);
 
   const phoneValid = isValidNationalNumber(country, national);
 
@@ -45,7 +48,15 @@ export function Login() {
   }, [secondsLeft]);
 
   const requestCode = async () => {
-    if (!phoneValid || busy) return;
+    if (busy) return;
+    if (!phoneValid) {
+      // The button stays tappable on an invalid number so there is something
+      // to explain — a disabled button tells the user nothing.
+      setError(INVALID_PHONE_MESSAGE);
+      buzz(ImpactStyle.Heavy);
+      phoneRef.current?.focus();
+      return;
+    }
     buzz();
     setBusy(true);
     setError(null);
@@ -72,20 +83,6 @@ export function Login() {
     } catch (err) {
       setError(messageFor(err));
       setCode('');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const google = async () => {
-    buzz();
-    setBusy(true);
-    setError(null);
-    try {
-      await signInWithGoogle();
-      navigate('/', { replace: true });
-    } catch (err) {
-      setError(messageFor(err));
     } finally {
       setBusy(false);
     }
@@ -123,7 +120,8 @@ export function Login() {
                   Welcome to Nudge
                 </h1>
                 <p className="mx-auto mt-2 max-w-xs text-[15px] leading-snug text-white/55">
-                  Sign in so your personas and streak follow you to a new phone.
+                  Verify your phone number and your personas and streak follow
+                  you to a new phone.
                 </p>
               </div>
 
@@ -159,52 +157,53 @@ export function Login() {
                     ))}
                   </select>
                   <input
+                    ref={phoneRef}
                     id="phone"
                     type="tel"
                     inputMode="numeric"
                     autoComplete="tel-national"
                     placeholder={country.code === 'IN' ? '98765 43210' : 'Phone number'}
                     value={formatNationalNumber(country, national)}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? 'phone-error' : undefined}
                     onChange={(e) => {
                       setError(null);
                       setNational(normalizeNationalNumber(e.target.value));
                     }}
-                    className="tap min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 text-lg font-bold outline-none placeholder:font-medium placeholder:text-white/25 focus:border-white/30"
+                    onBlur={() => {
+                      // Catch it on leaving the field too, not only on submit.
+                      if (national.length > 0 && !phoneValid) {
+                        setError(INVALID_PHONE_MESSAGE);
+                      }
+                    }}
+                    className="tap min-w-0 flex-1 rounded-2xl border bg-white/5 px-4 text-lg font-bold outline-none transition placeholder:font-medium placeholder:text-white/25 focus:border-white/30"
+                    style={{
+                      borderColor: error
+                        ? '#F43F5E'
+                        : 'rgba(255,255,255,0.10)',
+                    }}
                   />
                 </div>
 
                 {error && (
-                  <p className="mt-3 px-1 text-sm text-rose-300" role="alert">
+                  <p
+                    id="phone-error"
+                    className="mt-3 flex items-start gap-1.5 px-1 text-sm text-rose-300"
+                    role="alert"
+                  >
+                    <span aria-hidden>⚠️</span>
                     {error}
                   </p>
                 )}
 
-                <Button
-                  full
-                  type="submit"
-                  disabled={!phoneValid || busy}
-                  className="mt-5 h-14"
-                >
-                  {busy ? 'Sending…' : 'Send me a code'}
+                <Button full type="submit" disabled={busy} className="mt-5 h-14">
+                  {busy ? 'Sending the code…' : 'Send OTP to this number'}
                 </Button>
+                <p className="mt-2 px-1 text-center text-[13px] text-white/40">
+                  We'll text you a 6-digit code to verify it's you.
+                </p>
               </form>
 
-              <div className="my-6 flex items-center gap-3">
-                <span className="h-px flex-1 bg-white/10" />
-                <span className="text-xs font-bold uppercase tracking-wider text-white/30">
-                  or
-                </span>
-                <span className="h-px flex-1 bg-white/10" />
-              </div>
-
-              <button
-                onClick={google}
-                disabled={busy}
-                className="tap flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-white/15 px-5 text-base font-bold transition active:scale-[0.97] disabled:opacity-40"
-              >
-                <GoogleMark />
-                Continue with Google
-              </button>
             </motion.div>
           ) : (
             <motion.div
@@ -324,16 +323,4 @@ function messageFor(err: unknown): string {
     }
   }
   return 'Something went wrong. Try again?';
-}
-
-/** Google's mark, inline so the page pulls nothing from a CDN. */
-function GoogleMark() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden focusable="false">
-      <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.0 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z" />
-      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.0 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
-      <path fill="#4CAF50" d="M24 44c5.2 0 9.8-2 13.3-5.2l-6.2-5.2C29.1 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
-      <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.6l6.2 5.2C36.9 40.2 44 35 44 24c0-1.3-.1-2.6-.4-3.9z" />
-    </svg>
-  );
 }

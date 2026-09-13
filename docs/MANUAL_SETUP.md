@@ -14,11 +14,11 @@ blocks items 2 and 3.
 
 ## 1b. Firebase sign-in
 
-The login screen works against a stub that sends no SMS. **→ `docs/AUTH_SETUP.md`**
-covers the Firebase project, the SHA fingerprints Google sign-in needs on
-Android, the reversed-client-ID URL scheme on iOS, and the APNs key phone auth
-needs. It also flags the account-deletion flow both stores require once you
-ship login.
+Sign-in is phone OTP only, and works against a stub that sends no SMS.
+**→ `docs/AUTH_SETUP.md`** covers the Firebase project, the SHA fingerprints
+Play Integrity needs on Android, and the APNs key iOS phone auth needs — miss
+either and no SMS is ever sent. It also flags the account-deletion flow both
+stores require once you ship login.
 
 ---
 

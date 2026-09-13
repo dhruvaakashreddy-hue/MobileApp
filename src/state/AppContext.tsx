@@ -62,7 +62,6 @@ interface AppState {
 
   sendPhoneCode: (phoneE164: string) => Promise<PhoneChallenge>;
   signInWithPhone: (challenge: PhoneChallenge, code: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   continueAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
 
@@ -320,11 +319,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [persistSession],
   );
 
-  const signInWithGoogle = useCallback(async () => {
-    const user = await authProvider.signInWithGoogle();
-    await persistSession({ user, token: null, signedInAt: Date.now() });
-  }, [persistSession]);
-
   const continueAsGuest = useCallback(async () => {
     await persistSession(guestSession());
   }, [persistSession]);
@@ -349,7 +343,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       activeNudge,
       sendPhoneCode,
       signInWithPhone,
-      signInWithGoogle,
       continueAsGuest,
       signOut,
       updateSettings,
@@ -367,7 +360,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       ready, session, settings, stats, premium, premiumActive, permission,
-      nextFireAt, activeNudge, sendPhoneCode, signInWithPhone, signInWithGoogle,
+      nextFireAt, activeNudge, sendPhoneCode, signInWithPhone,
       continueAsGuest, signOut, updateSettings, setEnabled, selectPersona,
       toggleCategory, askPermission, completeOnboarding, buyPremium, restore,
       buzz, isPersonaLocked,

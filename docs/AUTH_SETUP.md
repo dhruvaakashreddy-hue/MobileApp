@@ -1,9 +1,9 @@
-# Wiring up real sign-in
+# Wiring up real phone sign-in
 
-The login screen is fully built and works end to end — but against a **stub**.
-It sends no SMS and talks to no server: any correctly-formatted number is
-accepted with the code `123456`, and the OTP screen shows a developer-build
-banner saying so while the stub is active.
+Sign-in is **phone OTP only**. The login screen is fully built and works end to
+end — but against a **stub**. It sends no SMS and talks to no server: any
+correctly-formatted number is accepted with the code `123456`, and the OTP
+screen shows a developer-build banner saying so while the stub is active.
 
 Making it real is one provider swap plus native configuration.
 
@@ -11,23 +11,20 @@ Making it real is one provider swap plus native configuration.
 
 ## Why Firebase
 
-Phone OTP and Google sign-in both need a provider; neither can be done from the
-app alone. Firebase Auth is the choice here because it is the only mainstream
-option offering **both** on Capacitor through a single maintained plugin, and
-its phone-auth free tier is generous.
+Sending an SMS and verifying the code back needs a provider — it cannot be done
+from the app alone. Firebase Auth has a maintained Capacitor plugin and a
+generous phone-auth free tier.
 
-Alternatives that also work, if you prefer: Supabase Auth (good phone OTP, but
-native Google sign-in needs extra wiring) or Auth0. Both would slot into the
-same `AuthProvider` interface.
+Alternatives that slot into the same `AuthProvider` interface if you prefer:
+Supabase Auth, Auth0, or Twilio Verify (which tends to be cheaper for Indian
+SMS at volume — worth pricing if sign-in becomes mandatory).
 
 ---
 
 ## 1. Create the Firebase project
 
 1. https://console.firebase.google.com → add a project.
-2. **Authentication → Sign-in method**, enable:
-   - **Phone**
-   - **Google** (set a support email)
+2. **Authentication → Sign-in method** → enable **Phone**.
 3. Register both apps under Project Settings:
    - Android — package name **`com.nudge.app`** (must match `appId` in
      `capacitor.config.ts`)
@@ -46,9 +43,10 @@ design — but they are project-identifying, so treat them as yours.
 > Until both files exist, **do not install the plugin** — the native build will
 > fail at compile time. That is exactly why the plugin is not a dependency yet.
 
-## 3. Android: SHA fingerprints (Google sign-in will not work without these)
+## 3. Android: SHA fingerprints (phone auth will not work without these)
 
-Google sign-in on Android verifies your signing certificate. Add the SHA-1 and
+Firebase verifies the app itself via the Play Integrity API before it will send
+an SMS, and that check is tied to your signing certificate. Add the SHA-1 and
 SHA-256 of **every** keystore you use — debug and release — under Project
 Settings → Your apps → Android → Add fingerprint.
 
@@ -64,36 +62,25 @@ keytool -list -v -alias <your-alias> -keystore <your-release.keystore>
 Re-download `google-services.json` after adding them.
 
 **If you use Play App Signing**, Google re-signs your app, so you must also add
-the SHA-1 from Play Console → Release → Setup → App signing. Forgetting this is
-the single most common reason Google sign-in works in testing and fails in
-production.
+the SHA-256 from Play Console → Release → Setup → App signing. Forgetting this
+is the single most common reason phone auth works in testing and then fails for
+everyone in production.
 
-## 4. iOS: the reversed client ID URL scheme
+## 4. iOS: APNs for app verification
 
-Open `GoogleService-Info.plist`, copy the `REVERSED_CLIENT_ID` value
-(`com.googleusercontent.apps.123456-abcdef`), and add it as a URL scheme in
-`ios/App/App/Info.plist` — **alongside** the existing `nudgeapp` scheme, not
-replacing it:
+iOS phone auth verifies the device with a silent push, so APNs must be set up —
+there is no way around it:
 
-```xml
-<key>CFBundleURLTypes</key>
-<array>
-  <dict>
-    <key>CFBundleURLName</key>
-    <string>com.nudge.app</string>
-    <key>CFBundleURLSchemes</key>
-    <array>
-      <string>nudgeapp</string>
-      <string>com.googleusercontent.apps.YOUR-REVERSED-CLIENT-ID</string>
-    </array>
-  </dict>
-</array>
-```
+1. Upload an **APNs auth key** (.p8) under Project Settings → Cloud Messaging.
+2. In Xcode, enable the **Push Notifications** capability and **Background
+   Modes → Remote notifications** on the App target.
 
-Phone auth on iOS also needs **APNs** configured (Firebase uses a silent push to
-verify the device). Upload an APNs auth key under Project Settings → Cloud
-Messaging, and enable Push Notifications + Background Modes → Remote
-notifications in Xcode capabilities.
+`GoogleService-Info.plist` must be added to the Xcode target as a bundle
+resource (drag it in, tick "Copy items if needed") — Capacitor's sync will not
+do this for you.
+
+Leave the existing `nudgeapp` URL scheme in `Info.plist` alone; it is the
+Razorpay return trip and unrelated to auth.
 
 ## 5. Install the plugin and flip the provider
 
@@ -118,7 +105,7 @@ Also add the plugin's Firebase config to `capacitor.config.ts`:
 plugins: {
   FirebaseAuthentication: {
     skipNativeAuth: false,
-    providers: ['phone', 'google.com'],
+    providers: ['phone'],
   },
 }
 ```
@@ -130,9 +117,11 @@ APNs (iOS).
 
 - [ ] Real SMS arrives and the code verifies.
 - [ ] Wrong code shows the error, right code signs in.
-- [ ] Google sign-in works on a **release-signed** build, not just debug.
+- [ ] Works on a **release-signed** build, not just debug (see the SHA note).
 - [ ] Sign out, then sign back in with the same number — same account.
 - [ ] Airplane mode shows the network error rather than hanging.
+- [ ] An invalid number shows "Please enter a valid phone number" before any
+      SMS is attempted.
 
 Add **test numbers** under Authentication → Sign-in method → Phone → "Phone
 numbers for testing" so you can develop without burning your SMS quota or
@@ -143,9 +132,11 @@ getting rate-limited.
 ## Things worth deciding before launch
 
 **Quota and cost.** Firebase phone auth is free up to a monthly limit, then
-billed per SMS. Indian SMS is not the cheapest route. If sign-in is optional
-(as it is now), most users will never trigger an SMS, which keeps this near
-zero. If you make it mandatory, model the cost first.
+billed per SMS. Indian SMS is not the cheapest route, and phone OTP is now the
+*only* sign-in path, so every account costs you at least one SMS. If sign-in is
+optional (as it is now), most users will tap guest and never trigger one. If
+you make it mandatory, model the cost first and price Twilio Verify against
+Firebase.
 
 **Is sign-in mandatory?** Currently no — the login screen offers "continue
 without an account", and a guest session is a first-class state. To make it

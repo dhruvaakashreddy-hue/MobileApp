@@ -66,17 +66,13 @@ export function Settings() {
             className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/10 text-2xl"
             aria-hidden
           >
-            {session?.user.method === 'google'
-              ? '🔵'
-              : session?.user.method === 'phone'
-                ? '📱'
-                : '👤'}
+            {session?.user.method === 'phone' ? '📱' : '👤'}
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold">
               {session?.user.phoneNumber
                 ? formatE164ForDisplay(session.user.phoneNumber)
-                : (session?.user.email ?? 'Guest')}
+                : 'Guest'}
             </p>
             <p className="text-[13px] text-white/45">
               {session?.user.method === 'guest'

@@ -8,8 +8,8 @@ import { Preferences } from '@capacitor/preferences';
  * locally, but sends no SMS and talks to no server. Any correctly-formatted
  * phone number is accepted with the code below. Do NOT ship this.
  *
- * Real phone OTP and Google sign-in both need a backend — see
- * docs/AUTH_SETUP.md for exactly what to create and where each value goes.
+ * Real phone OTP needs a backend — see docs/AUTH_SETUP.md for exactly what to
+ * create and where each value goes.
  * ──────────────────────────────────────────────────────────────────────────
  *
  * Note on the app's privacy story: Nudge otherwise makes no network calls and
@@ -21,7 +21,7 @@ import { Preferences } from '@capacitor/preferences';
 /** The code the stub provider accepts. Shown on-screen while the stub is live. */
 export const STUB_OTP_CODE = '123456';
 
-export type AuthMethod = 'phone' | 'google' | 'guest';
+export type AuthMethod = 'phone' | 'guest';
 
 export interface AuthUser {
   id: string;
@@ -69,7 +69,6 @@ export interface AuthProvider {
   id: 'stub' | 'firebase';
   sendPhoneCode(phoneE164: string): Promise<PhoneChallenge>;
   confirmPhoneCode(challenge: PhoneChallenge, code: string): Promise<AuthUser>;
-  signInWithGoogle(): Promise<AuthUser>;
   signOut(): Promise<void>;
 }
 
@@ -214,18 +213,6 @@ const stubProvider: AuthProvider = {
     };
   },
 
-  async signInWithGoogle(): Promise<AuthUser> {
-    await delay(800);
-    return {
-      id: 'google-stub-user',
-      method: 'google',
-      phoneNumber: null,
-      email: 'you@example.com',
-      displayName: 'Test User',
-      photoUrl: null,
-    };
-  },
-
   async signOut(): Promise<void> {
     await sessionStore.clear();
   },
@@ -234,9 +221,7 @@ const stubProvider: AuthProvider = {
 // ─── Firebase provider (written, not active) ──────────────────────────────
 
 /**
- * Firebase Auth via `@capacitor-firebase/authentication`, which is the only
- * mainstream option giving BOTH phone OTP and native Google sign-in on
- * Capacitor.
+ * Firebase Auth via `@capacitor-firebase/authentication`.
  *
  * The plugin is deliberately NOT a dependency yet — installing it without
  * `google-services.json` / `GoogleService-Info.plist` breaks the native build.
@@ -253,7 +238,6 @@ interface FirebaseAuthPlugin {
     verificationId: string;
     verificationCode: string;
   }): Promise<{ user?: FirebaseUserShape | null }>;
-  signInWithGoogle(): Promise<{ user?: FirebaseUserShape | null }>;
   signOut(): Promise<void>;
 }
 
@@ -324,12 +308,6 @@ const firebaseProvider: AuthProvider = {
       verificationCode: code,
     });
     return toAuthUser(res.user, 'phone');
-  },
-
-  async signInWithGoogle(): Promise<AuthUser> {
-    const auth = await loadFirebaseAuth();
-    const res = await auth.signInWithGoogle();
-    return toAuthUser(res.user, 'google');
   },
 
   async signOut(): Promise<void> {
