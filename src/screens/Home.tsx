@@ -1,0 +1,221 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ImpactStyle } from '@capacitor/haptics';
+import { useApp } from '../state/AppContext';
+import { Card, IconButton, Screen } from '../components/ui';
+import { formatCountdown, formatTimeLabel, pickLine } from '../lib/scheduling';
+import { isNative, sendTestNudge } from '../lib/notifications';
+import { store } from '../lib/storage';
+
+export function Home() {
+  const {
+    settings, stats, persona, nextFireAt, permission,
+    setEnabled, buzz, showNudge,
+  } = useApp();
+  const navigate = useNavigate();
+  const [now, setNow] = useState(Date.now());
+  const [testSent, setTestSent] = useState(false);
+
+  // A minute is plenty — the countdown is deliberately approximate.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const blocked = isNative() && permission === 'denied';
+
+  const handleToggle = async () => {
+    buzz(ImpactStyle.Medium);
+    await setEnabled(!settings.enabled);
+  };
+
+  const handlePreview = async () => {
+    const line = pickLine(persona, settings, await store.getLastLineId());
+    if (!line) return;
+    buzz();
+    if (isNative()) {
+      await sendTestNudge(settings, line.text);
+      setTestSent(true);
+      setTimeout(() => setTestSent(false), 4000);
+    } else {
+      // On the web preview there is no OS notification, so show the card directly.
+      showNudge({ lineId: line.id, personaId: persona.id, text: line.text });
+    }
+  };
+
+  return (
+    <Screen>
+      <header className="flex items-center justify-between pt-3 pb-6">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
+            Nudge
+          </p>
+          <h1 className="font-display text-3xl tracking-tight">
+            {settings.enabled ? 'Armed & annoying' : 'Currently silent'}
+          </h1>
+        </div>
+        <IconButton label="Settings" onClick={() => navigate('/settings')}>
+          ⚙️
+        </IconButton>
+      </header>
+
+      {blocked && (
+        <div className="mb-5 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4">
+          <p className="text-sm font-semibold text-amber-200">
+            Notifications are switched off for Nudge
+          </p>
+          <p className="mt-1 text-[13px] leading-snug text-amber-100/70">
+            Nudge can't reach you until you allow notifications in your phone's
+            Settings → Nudge → Notifications.
+          </p>
+        </div>
+      )}
+
+      {/* The main event: one big, unmissable switch. */}
+      <button
+        onClick={handleToggle}
+        aria-pressed={settings.enabled}
+        aria-label={settings.enabled ? 'Turn nudges off' : 'Turn nudges on'}
+        className="relative w-full overflow-hidden rounded-[2rem] p-[2px] text-left transition active:scale-[0.985]"
+      >
+        <div
+          className={`rounded-[2rem] bg-gradient-to-br p-6 ${
+            settings.enabled
+              ? persona.theme.gradient
+              : 'from-white/10 via-white/5 to-white/10'
+          }`}
+        >
+          <div className="flex items-center gap-4">
+            <motion.span
+              className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-black/25 text-3xl"
+              aria-hidden
+              animate={settings.enabled ? { rotate: [-6, 6, -6] } : { rotate: 0 }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              {persona.emoji}
+            </motion.span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display whitespace-nowrap text-[22px] leading-none">
+                {settings.enabled ? 'NUDGES ON' : 'NUDGES OFF'}
+              </p>
+              <p className="mt-1.5 text-[13px] leading-snug text-white/70">
+                {settings.enabled
+                  ? `${persona.name} is on duty`
+                  : 'Tap to let the chaos back in'}
+              </p>
+            </div>
+            <span
+              className="relative h-[34px] w-[58px] shrink-0 rounded-full bg-black/30"
+              aria-hidden
+            >
+              <motion.span
+                layout
+                transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+                className="absolute top-[4px] h-[26px] w-[26px] rounded-full bg-white shadow"
+                style={{ left: settings.enabled ? 28 : 4 }}
+              />
+            </span>
+          </div>
+        </div>
+      </button>
+
+      {/* Next nudge */}
+      <Card className="mt-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/40">
+              Next nudge
+            </p>
+            <p className="mt-1 font-display text-xl">
+              {!settings.enabled
+                ? 'Nothing scheduled'
+                : nextFireAt
+                  ? formatCountdown(nextFireAt - now)
+                  : 'Working it out…'}
+            </p>
+            {settings.enabled && nextFireAt && (
+              <p className="mt-0.5 text-[13px] text-white/45">
+                around {formatTimeLabel(
+                  new Date(nextFireAt).getHours() * 60 +
+                    new Date(nextFireAt).getMinutes(),
+                )}
+              </p>
+            )}
+          </div>
+          <span className="text-3xl" aria-hidden>
+            {settings.enabled ? '⏳' : '😴'}
+          </span>
+        </div>
+        {settings.enabled && (
+          <p className="mt-3 border-t border-white/10 pt-3 text-[13px] leading-snug text-white/45">
+            Every {Math.round(settings.minMinutes)}–{Math.round(settings.maxMinutes)} min
+            between {formatTimeLabel(settings.activeStart)} and{' '}
+            {formatTimeLabel(settings.activeEnd)}.
+          </p>
+        )}
+      </Card>
+
+      {/* Stats */}
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <Stat value={stats.todayCount} label="nudges today" emoji="📬" />
+        <Stat
+          value={stats.streak}
+          label={stats.streak === 1 ? 'day streak' : 'day streak'}
+          emoji="🔥"
+        />
+      </div>
+
+      {/* Persona */}
+      <button
+        onClick={() => {
+          buzz();
+          navigate('/personas');
+        }}
+        className="mt-4 flex w-full items-center gap-4 rounded-3xl border border-white/10 bg-ink-card/70 p-4 text-left transition active:scale-[0.985] active:bg-white/5"
+      >
+        <span
+          className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${persona.theme.gradient} text-3xl`}
+          aria-hidden
+        >
+          {persona.emoji}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-bold uppercase tracking-[0.14em] text-white/40">
+            Your persona
+          </span>
+          <span className="mt-0.5 block text-lg font-bold">{persona.name}</span>
+          <span className="mt-0.5 block truncate text-[13px] text-white/45">
+            Tap to switch
+          </span>
+        </span>
+        <span className="text-white/30" aria-hidden>›</span>
+      </button>
+
+      <button
+        onClick={handlePreview}
+        className="tap mt-4 mb-6 w-full rounded-2xl border-2 border-dashed border-white/15 px-5 text-sm font-bold text-white/70 transition active:scale-[0.98]"
+      >
+        {testSent ? '👀 Watch your notification shade…' : '🔔 Send me one right now'}
+      </button>
+    </Screen>
+  );
+}
+
+function Stat({
+  value,
+  label,
+  emoji,
+}: {
+  value: number;
+  label: string;
+  emoji: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-ink-card/70 p-4">
+      <span className="text-2xl" aria-hidden>{emoji}</span>
+      <p className="mt-1 font-display text-3xl tabular-nums leading-none">{value}</p>
+      <p className="mt-1 text-[13px] text-white/45">{label}</p>
+    </div>
+  );
+}

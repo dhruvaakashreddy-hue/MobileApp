@@ -1,0 +1,88 @@
+import { useEffect } from 'react';
+import {
+  HashRouter, Navigate, Route, Routes, useLocation,
+} from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { SplashScreen } from '@capacitor/splash-screen';
+import { AppProvider, useApp } from './state/AppContext';
+import { NudgeOverlay } from './components/NudgeOverlay';
+import { Home } from './screens/Home';
+import { Personas } from './screens/Personas';
+import { Settings } from './screens/Settings';
+import { Paywall } from './screens/Paywall';
+import { Onboarding } from './screens/Onboarding';
+import { isNative } from './lib/notifications';
+import { useBackButton } from './lib/useBackButton';
+
+function Routed() {
+  const { ready, settings, activeNudge, dismissNudge } = useApp();
+  const location = useLocation();
+
+  // Back closes the nudge card before it touches navigation.
+  useBackButton(() => {
+    if (!activeNudge) return false;
+    dismissNudge();
+    return true;
+  });
+
+  useEffect(() => {
+    if (!ready || !isNative()) return;
+    void SplashScreen.hide().catch(() => {});
+    void StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+  }, [ready]);
+
+  if (!ready) {
+    // Brief, quiet loading state — Preferences reads are near-instant.
+    return (
+      <div className="grid h-full place-items-center">
+        <motion.span
+          className="text-5xl"
+          aria-label="Loading"
+          animate={{ rotate: [-10, 10, -10] }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          👋
+        </motion.span>
+      </div>
+    );
+  }
+
+  // First launch always lands on onboarding.
+  if (!settings.onboarded && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={location.pathname}
+        className="h-full"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+      >
+        <Routes location={location}>
+          <Route path="/" element={<Home />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/personas" element={<Personas />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/paywall" element={<Paywall />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <HashRouter>
+        <Routed />
+        <NudgeOverlay />
+      </HashRouter>
+    </AppProvider>
+  );
+}

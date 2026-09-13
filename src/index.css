@@ -1,0 +1,153 @@
+@import 'tailwindcss';
+
+/*
+ * Self-hosted fonts. Nudge makes no network calls at runtime, so pulling these
+ * from Google Fonts would be the one thing that breaks offline — and would
+ * leak a request on every cold start. Both faces are SIL Open Font License 1.1
+ * (Archivo Black by Omnibus-Type, Inter by Rasmus Andersson).
+ */
+@font-face {
+  font-family: 'Archivo Black';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/archivo-black-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+}
+
+@theme {
+  --font-display: 'Archivo Black', 'Arial Black', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-ink: #0b0b12;
+  --color-ink-soft: #14141f;
+  --color-ink-card: #1b1b29;
+  --color-chalk: #f7f5ff;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    /* Respect the notch / gesture bar on both platforms. */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-ink);
+    color: var(--color-chalk);
+    font-family: var(--font-sans);
+    /* A native app shouldn't rubber-band or let text be accidentally selected. */
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Inputs are the one place selection should still work. */
+  input,
+  textarea {
+    -webkit-user-select: auto;
+    user-select: auto;
+  }
+
+  button {
+    font-family: inherit;
+  }
+}
+
+@layer utilities {
+  .pt-safe {
+    padding-top: calc(var(--safe-top) + 0.5rem);
+  }
+  .pb-safe {
+    padding-bottom: calc(var(--safe-bottom) + 0.5rem);
+  }
+  .nav-pb-safe {
+    padding-bottom: calc(var(--safe-bottom) + 0.75rem);
+  }
+  /* Comfortable minimum hit area — 44px is Apple's guidance, 48dp Google's. */
+  .tap {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}
+
+/* Range inputs need explicit thumb styling to look deliberate on both platforms. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 40px;
+  background: transparent;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 28px;
+  width: 28px;
+  margin-top: -11px;
+  border-radius: 999px;
+  background: var(--color-chalk);
+  border: 3px solid var(--thumb-color, #7c3aed);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
+  cursor: pointer;
+}
+
+input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+input[type='range']::-moz-range-thumb {
+  height: 28px;
+  width: 28px;
+  border-radius: 999px;
+  background: var(--color-chalk);
+  border: 3px solid var(--thumb-color, #7c3aed);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
+  cursor: pointer;
+}
+
+/* Time inputs: make the native picker legible on a dark surface. */
+input[type='time'] {
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

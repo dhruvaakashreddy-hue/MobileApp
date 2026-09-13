@@ -1,0 +1,208 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Share } from '@capacitor/share';
+import { useApp } from '../state/AppContext';
+import {
+  Button, Card, IconButton, Screen, ScreenHeader, SectionLabel, ToggleRow,
+} from '../components/ui';
+import { IntervalPicker } from '../components/IntervalPicker';
+import { ActiveHoursPicker } from '../components/ActiveHoursPicker';
+import {
+  ALL_CATEGORIES, CATEGORY_BLURBS, CATEGORY_EMOJI, CATEGORY_LABELS,
+} from '../data/personas';
+import { formatExpiry, PRICE_LABEL, PRICE_PERIOD } from '../lib/billing';
+import { isNative } from '../lib/notifications';
+
+export function Settings() {
+  const {
+    settings, persona, premium, premiumActive,
+    updateSettings, toggleCategory, restore, buzz,
+  } = useApp();
+  const navigate = useNavigate();
+  const [restoreMsg, setRestoreMsg] = useState<string | null>(null);
+
+  const onRestore = async () => {
+    buzz();
+    setRestoreMsg('Checking…');
+    const ok = await restore();
+    setRestoreMsg(
+      ok ? 'Premium restored — all personas unlocked.' : 'No active subscription found on this device.',
+    );
+  };
+
+  const onShare = async () => {
+    buzz();
+    const text =
+      'I let a drill sergeant live in my phone and now I drink water. Get Nudge.';
+    try {
+      if (isNative()) {
+        await Share.share({ title: 'Nudge', text, dialogTitle: 'Share Nudge' });
+      } else if (navigator.share) {
+        await navigator.share({ title: 'Nudge', text });
+      }
+    } catch {
+      // User dismissed the share sheet — nothing to do.
+    }
+  };
+
+  const only = settings.categories.length === 1;
+
+  return (
+    <Screen>
+      <ScreenHeader
+        title="Settings"
+        left={
+          <IconButton label="Back" onClick={() => navigate(-1)} className="mt-1">
+            ‹
+          </IconButton>
+        }
+      />
+
+      <SectionLabel>Timing</SectionLabel>
+      <Card className="mb-6">
+        <IntervalPicker
+          minMinutes={settings.minMinutes}
+          maxMinutes={settings.maxMinutes}
+          accentHex={persona.theme.hex}
+          onChange={(next) => void updateSettings(next)}
+        />
+      </Card>
+
+      <SectionLabel>Active hours</SectionLabel>
+      <Card className="mb-6">
+        <ActiveHoursPicker
+          activeStart={settings.activeStart}
+          activeEnd={settings.activeEnd}
+          onChange={(next) => void updateSettings(next)}
+        />
+      </Card>
+
+      <SectionLabel>What you'll get nudged about</SectionLabel>
+      <Card className="mb-6">
+        {ALL_CATEGORIES.map((c) => {
+          const checked = settings.categories.includes(c);
+          return (
+            <ToggleRow
+              key={c}
+              emoji={CATEGORY_EMOJI[c]}
+              label={CATEGORY_LABELS[c]}
+              description={CATEGORY_BLURBS[c]}
+              checked={checked}
+              // Block turning off the last one — zero categories means no nudges at all.
+              disabled={checked && only}
+              accentHex={persona.theme.hex}
+              onChange={() => {
+                buzz();
+                void toggleCategory(c);
+              }}
+            />
+          );
+        })}
+        {only && (
+          <p className="mt-2 px-1 text-[13px] text-white/40">
+            Keep at least one switched on, otherwise there's nothing to send.
+          </p>
+        )}
+      </Card>
+
+      <SectionLabel>Alerts</SectionLabel>
+      <Card className="mb-6">
+        <ToggleRow
+          emoji="🔊"
+          label="Notification sound"
+          description="Each persona has its own sound. Off keeps it to a silent banner."
+          checked={settings.soundEnabled}
+          accentHex={persona.theme.hex}
+          onChange={(v) => {
+            buzz();
+            void updateSettings({ soundEnabled: v });
+          }}
+        />
+        <ToggleRow
+          emoji="📳"
+          label="Haptics"
+          description="A little buzz when you tap things and when a nudge lands."
+          checked={settings.hapticsEnabled}
+          accentHex={persona.theme.hex}
+          onChange={(v) => void updateSettings({ hapticsEnabled: v })}
+        />
+      </Card>
+
+      <SectionLabel>Subscription</SectionLabel>
+      <Card className="mb-6">
+        {premiumActive ? (
+          <div>
+            <p className="font-display text-xl">✨ Premium active</p>
+            <p className="mt-1 text-[13px] text-white/50">
+              All personas unlocked
+              {formatExpiry(premium) ? ` · renews ${formatExpiry(premium)}` : ''}.
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p className="font-display text-xl">Unlock all personas</p>
+            <p className="mt-1 mb-4 text-[13px] text-white/50">
+              {PRICE_LABEL}/{PRICE_PERIOD} — every persona, every category.
+            </p>
+            <Button
+              full
+              accent={persona.theme.accent}
+              onAccent={persona.theme.onAccent}
+              onClick={() => navigate('/paywall')}
+            >
+              See what's inside
+            </Button>
+          </div>
+        )}
+        <button
+          onClick={onRestore}
+          className="tap mt-2 w-full rounded-2xl px-4 text-sm font-semibold text-white/60 transition active:bg-white/5"
+        >
+          Restore purchases
+        </button>
+        {restoreMsg && (
+          <p className="mt-1 text-center text-[13px] text-white/50" role="status">
+            {restoreMsg}
+          </p>
+        )}
+      </Card>
+
+      <SectionLabel>Spread the chaos</SectionLabel>
+      <Card className="mb-6">
+        <button
+          onClick={onShare}
+          className="tap flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition active:bg-white/5"
+        >
+          <span className="text-xl" aria-hidden>📤</span>
+          <span className="flex-1 text-[15px] font-semibold">Share Nudge with a friend</span>
+          <span className="text-white/30" aria-hidden>›</span>
+        </button>
+        <button
+          onClick={() => {
+            buzz();
+            // TODO: swap in the real store listing URLs once the app is published.
+            // Android: market://details?id=com.nudge.app
+            // iOS: itms-apps://itunes.apple.com/app/id<APP_ID>?action=write-review
+            window.open('https://example.com/nudge', '_blank');
+          }}
+          className="tap flex w-full items-center gap-3 rounded-2xl px-1 py-3 text-left transition active:bg-white/5"
+        >
+          <span className="text-xl" aria-hidden>⭐</span>
+          <span className="flex-1 text-[15px] font-semibold">Rate the app</span>
+          <span className="text-white/30" aria-hidden>›</span>
+        </button>
+      </Card>
+
+      <button
+        onClick={() => {
+          buzz();
+          void updateSettings({ onboarded: false });
+          navigate('/onboarding');
+        }}
+        className="tap mb-8 w-full rounded-2xl px-4 text-sm font-semibold text-white/35 transition active:bg-white/5"
+      >
+        Replay the intro
+      </button>
+    </Screen>
+  );
+}

@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local env
+.env
+.env.local
+
+# Capacitor: the native projects ARE committed — they hold the manifest,
+# permissions, deep-link registration, launcher icons and notification sounds
+# you edit by hand. Only their build output is ignored.
+/android/build
+/android/app/build
+/android/.gradle
+/android/local.properties
+/android/app/src/main/assets/public
+/android/app/src/main/res/xml/config.xml
+/ios/App/build
+/ios/App/Pods
+/ios/App/App/public
+/ios/App/output
+/ios/DerivedData
