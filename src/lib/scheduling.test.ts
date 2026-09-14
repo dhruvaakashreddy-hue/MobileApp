@@ -207,3 +207,54 @@ describe('formatInterval', () => {
     assert.equal(formatInterval(180), '3 hr');
   });
 });
+
+import { MAX_PENDING, activeWindowMinutes, plannedCount } from './scheduling.ts';
+
+/**
+ * Whatever is queued with the OS is all a user gets until they next open the
+ * app — the notifications fire with the app closed and the screen locked, but
+ * only while the batch lasts. A fixed batch of 12 meant nudges quietly stopped
+ * after six hours at the default cadence, for exactly the person who had
+ * stopped opening the app.
+ */
+describe('how deep the notification queue goes', () => {
+  const DAY = { activeStart: 9 * 60, activeEnd: 21 * 60 };
+
+  it('never exceeds the iOS pending-notification ceiling', () => {
+    for (const intervalMinutes of [10, 15, 20, 30, 45, 60, 90, 120, 180]) {
+      const n = plannedCount({ ...DAY, intervalMinutes });
+      assert.ok(n <= MAX_PENDING, `interval ${intervalMinutes} queued ${n}`);
+      assert.ok(MAX_PENDING < 64, 'must stay clear of the hard limit of 64');
+    }
+  });
+
+  it('covers at least a full day unopened at every interval', () => {
+    for (const intervalMinutes of [10, 15, 30, 45, 60, 90, 180]) {
+      const perDay = Math.floor(720 / intervalMinutes);
+      const days = plannedCount({ ...DAY, intervalMinutes }) / perDay;
+      assert.ok(days >= 0.8, `interval ${intervalMinutes} only covers ${days.toFixed(1)} days`);
+    }
+  });
+
+  it('queues more for a short interval than a long one', () => {
+    const fast = plannedCount({ ...DAY, intervalMinutes: 10 });
+    const slow = plannedCount({ ...DAY, intervalMinutes: 180 });
+    assert.ok(fast > slow, `fast ${fast} should exceed slow ${slow}`);
+  });
+
+  it('always queues a useful minimum', () => {
+    assert.ok(plannedCount({ ...DAY, intervalMinutes: 180 }) >= 12);
+  });
+
+  it('measures an active window that wraps past midnight', () => {
+    assert.equal(activeWindowMinutes({ activeStart: 9 * 60, activeEnd: 21 * 60 }), 720);
+    assert.equal(activeWindowMinutes({ activeStart: 22 * 60, activeEnd: 6 * 60 }), 480);
+    assert.equal(activeWindowMinutes({ activeStart: 600, activeEnd: 600 }), 1440);
+  });
+
+  it('accounts for a longer waking window', () => {
+    const short = plannedCount({ activeStart: 9 * 60, activeEnd: 12 * 60, intervalMinutes: 30 });
+    const long = plannedCount({ activeStart: 0, activeEnd: 0, intervalMinutes: 30 });
+    assert.ok(long >= short, 'an all-day window needs at least as many');
+  });
+});

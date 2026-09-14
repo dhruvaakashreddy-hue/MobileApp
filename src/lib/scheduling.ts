@@ -121,3 +121,42 @@ export function formatCountdown(msRemaining: number): string {
   const mins = totalMinutes % 60;
   return mins === 0 ? `${hours} hr` : `${hours} hr ${mins} min`;
 }
+
+/**
+ * iOS silently discards anything past 64 pending local notifications, so this
+ * stays clear of that ceiling. Android has no equivalent limit, but the same
+ * number keeps both platforms behaving identically.
+ */
+export const MAX_PENDING = 60;
+
+/** How far ahead to queue when the interval allows it. */
+export const TARGET_DAYS = 3;
+
+/** Length of the active window in minutes, handling windows that wrap midnight. */
+export function activeWindowMinutes(
+  settings: Pick<Settings, 'activeStart' | 'activeEnd'>,
+): number {
+  const { activeStart, activeEnd } = settings;
+  if (activeStart === activeEnd) return 1440;
+  return activeEnd > activeStart
+    ? activeEnd - activeStart
+    : 1440 - activeStart + activeEnd;
+}
+
+/**
+ * How many nudges to hand the OS at once.
+ *
+ * Whatever is queued is all the user gets until they next open the app, so this
+ * is sized in days of coverage rather than as a fixed count — a 10-minute
+ * cadence burns through a batch six times faster than an hourly one. Bounded by
+ * the platform cap, and never fewer than a dozen.
+ */
+export function plannedCount(
+  settings: Pick<Settings, 'activeStart' | 'activeEnd' | 'intervalMinutes'>,
+): number {
+  const perDay = Math.max(
+    1,
+    Math.floor(activeWindowMinutes(settings) / clampInterval(settings.intervalMinutes)),
+  );
+  return Math.min(MAX_PENDING, Math.max(12, perDay * TARGET_DAYS));
+}

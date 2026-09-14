@@ -106,6 +106,30 @@ easier to reason about (and test) in isolation.
 - Windows that wrap past midnight (22:00 → 06:00) work correctly.
 - Disabled categories are excluded from the pool.
 
+### Does it work with the app closed and the screen locked?
+
+Yes, and that is the normal case. Nudges are scheduled with the OS as real
+alarms, not kept alive by the app — they fire with the app backgrounded, killed
+or the phone locked, and survive a reboot (`LocalNotificationRestoreReceiver`).
+The Android channel is created at importance 5 with public lock-screen
+visibility, so the nudge appears as a heads-up banner and its text is readable
+on the lock screen. `allowWhileIdle` lets them through Doze.
+
+The thing that decides how long it keeps working is how many are queued, since
+whatever is queued is all the user gets until they next open the app. That is
+sized in days of coverage rather than as a fixed number — at the default
+30 minutes the queue spans roughly **2.5 days** of not opening the app, and it
+is topped up on every delivery, resume and settings change.
+
+Two limits are the platform's, not ours:
+
+- **iOS discards anything past 64 pending local notifications**, so the queue
+  caps at 60. At a 10-minute cadence that is about a day of coverage; at an hour
+  or more it is the full three days.
+- **Aggressive battery savers kill alarms** on some Android OEMs (Xiaomi, Oppo,
+  Vivo, Samsung). No amount of code fixes this — the user has to exempt the app.
+  See the device checklist in `docs/MANUAL_SETUP.md`.
+
 ### Delivering a nudge while the app is open
 
 Three paths, all ending at the same persona card:

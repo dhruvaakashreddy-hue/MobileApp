@@ -3,7 +3,7 @@ import type { PluginListenerHandle } from '@capacitor/core';
 import { Capacitor } from '@capacitor/core';
 import type { Persona } from '../types';
 import { getPersona } from '../data/personas';
-import { computeNextFireTime } from './scheduling';
+import { computeNextFireTime, plannedCount } from './scheduling';
 import { createQueue, takeFromQueue, type NudgeChoice } from './nudgePool';
 import {
   creditNudge,
@@ -18,13 +18,17 @@ import {
  * Design note — why a rolling buffer instead of a strict one-at-a-time chain:
  * a pure chain only re-arms while the app is alive to observe the delivery, so
  * the moment the OS evicts the app (the normal state for an app like this) the
- * nudges stop for good. Instead we keep a small rolling buffer of upcoming
- * nudges — LOOKAHEAD of them, far below iOS's hard limit of 64 pending local
- * notifications — and top it back up on every delivery, every app resume and
- * every settings change. Each buffered nudge still gets its own randomised gap,
- * so the unpredictability is unchanged; it just survives the app being killed.
+ * nudges stop for good. Instead we hand a batch of scheduled notifications to
+ * the OS, which delivers them with the app closed, killed or the screen locked,
+ * and top the batch back up on every delivery, resume and settings change.
+ *
+ * How deep the batch goes matters more than it looks. Whatever is queued is all
+ * the user gets until they next open the app — so a shallow buffer means the
+ * nudges quietly stop for exactly the person who has stopped opening the app,
+ * which is the person who most needs them. It is sized in days of coverage
+ * rather than as a fixed count, because a 10-minute cadence burns through a
+ * batch six times faster than an hourly one.
  */
-const LOOKAHEAD = 12;
 
 /** Reserved notification id range, so we never collide with other plugins. */
 const ID_BASE = 4200;
@@ -101,15 +105,14 @@ export async function requestPermission(): Promise<PermissionState> {
 }
 
 /**
- * Builds the next `LOOKAHEAD` nudges, each with its own random gap measured
- * from the one before it, skipping anything that would land outside the user's
- * active hours.
+ * Builds the next batch of nudges, each one interval after the last, skipping
+ * anything that would land outside the user's active hours.
  */
 export async function buildPlan(
   now: Date,
   settings: Settings,
   persona: Persona,
-  count = LOOKAHEAD,
+  count = plannedCount(settings),
 ): Promise<PlannedNudge[]> {
   const stored = await store.getQueue();
   let queue = stored ?? createQueue(persona, settings.categories);
@@ -259,10 +262,15 @@ export async function reconcileDelivered(now: Date = new Date()): Promise<{
 }
 
 /** True when the buffer has run low and should be rebuilt. */
-export async function needsTopUp(now: Date = new Date()): Promise<boolean> {
+export async function needsTopUp(
+  settings: Settings,
+  now: Date = new Date(),
+): Promise<boolean> {
   const plan = await store.getPlan();
   const upcoming = plan.filter((p) => p.fireAt > now.getTime());
-  return upcoming.length < Math.ceil(LOOKAHEAD / 3);
+  // Refill at half rather than near-empty: the app may not be opened again for
+  // a long while, and a top-up only happens when it is.
+  return upcoming.length < plannedCount(settings) / 2;
 }
 
 export function parsePayload(extra: unknown): NudgePayload | null {

@@ -137,7 +137,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ]);
     setStats(normalizeStats(freshStats));
 
-    if (settingsRef.current.enabled && (await needsTopUp())) {
+    if (
+      settingsRef.current.enabled &&
+      (await needsTopUp(settingsRef.current))
+    ) {
       const plan = await rescheduleAll(settingsRef.current);
       setNextFireAt(plan[0]?.fireAt ?? null);
     } else {

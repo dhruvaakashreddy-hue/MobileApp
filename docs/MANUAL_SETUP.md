@@ -123,14 +123,24 @@ The notification behaviour is the app, and none of it can be verified in a
 browser:
 
 - [ ] A nudge arrives with the app **killed** (not just backgrounded).
+- [ ] A nudge arrives with the **screen locked**, and its text is readable on
+      the lock screen without unlocking.
+- [ ] Leave the app closed overnight and confirm nudges still arrive the next
+      day — this is what the queue depth exists for.
 - [ ] Tapping that notification opens the app onto the persona card.
 - [ ] The per-persona sound plays, and the sound toggle silences it.
 - [ ] Nothing fires outside active hours — set a narrow window and leave it.
 - [ ] Nudges survive a **reboot** (the restore receiver is registered).
 - [ ] Android 13+ shows the runtime notification permission prompt.
 - [ ] Battery optimisation: on Xiaomi, Oppo, Vivo and Samsung, aggressive
-      battery savers kill scheduled alarms. Test on at least one. You may need
-      to prompt users toward "don't optimise this app".
+      battery savers kill scheduled alarms outright. Test on at least one.
+      Code cannot fix this — the app has to ask the user to exempt it, and
+      those OEMs are the most common cause of "the notifications just stopped".
+- [ ] **Android 13+ exact alarms.** The manifest asks for SCHEDULE_EXACT_ALARM
+      and USE_EXACT_ALARM so nudges land on the minute. Play restricts
+      USE_EXACT_ALARM to alarm-and-reminder apps; if the listing is rejected
+      over it, drop that permission and accept that Doze may delay a nudge by a
+      few minutes, which for this app is harmless.
 - [ ] iOS: confirm nudges show as alerts rather than silent banners.
 
 ## 7. Store listings (if you picked Option A)
