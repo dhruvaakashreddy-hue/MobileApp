@@ -1,8 +1,8 @@
 import { Preferences } from '@capacitor/preferences';
 import type { NudgeCategory } from '../types';
-import { ALL_CATEGORIES, DEFAULT_PERSONA_ID } from '../data/personas';
-import type { NudgeQueue } from './nudgePool';
-import { DEFAULT_INTERVAL_MINUTES } from './scheduling';
+import { ALL_CATEGORIES, DEFAULT_PERSONA_ID } from '../data/personas.ts';
+import type { NudgeQueue } from './nudgePool.ts';
+import { DEFAULT_INTERVAL_MINUTES } from './scheduling.ts';
 
 /**
  * Everything the app knows lives here, in Capacitor Preferences (UserDefaults
@@ -120,6 +120,30 @@ async function writeJSON(key: string, value: unknown): Promise<void> {
   await Preferences.set({ key, value: JSON.stringify(value) });
 }
 
+function isPlannedOption(v: unknown): v is PlannedNudgeOption {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  return typeof o.text === 'string' && o.text.length > 0;
+}
+
+/**
+ * Guards the boundary between stored JSON and typed code. Everything in
+ * Preferences was written by some past version of this app, so it is untrusted
+ * input as far as the current one is concerned.
+ */
+export function isValidPlannedNudge(v: unknown): v is PlannedNudge {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as Record<string, unknown>;
+  return (
+    typeof p.notificationId === 'number' &&
+    typeof p.fireAt === 'number' &&
+    typeof p.personaId === 'string' &&
+    typeof p.text === 'string' &&
+    isPlannedOption(p.healthy) &&
+    isPlannedOption(p.chaos)
+  );
+}
+
 export const store = {
   getSettings: () => readJSON<Settings>(KEYS.settings, DEFAULT_SETTINGS),
   setSettings: (s: Settings) => writeJSON(KEYS.settings, s),
@@ -149,7 +173,13 @@ export const store = {
   async getPlan(): Promise<PlannedNudge[]> {
     try {
       const { value } = await Preferences.get({ key: KEYS.plan });
-      return value ? (JSON.parse(value) as PlannedNudge[]) : [];
+      if (!value) return [];
+      const parsed = JSON.parse(value) as unknown;
+      if (!Array.isArray(parsed)) return [];
+      // Drop anything that doesn't match the current shape. A plan written by
+      // an older build has no this-or-that options on it, and rendering one
+      // would crash the app; discarding it makes the queue rebuild instead.
+      return parsed.filter(isValidPlannedNudge);
     } catch {
       return [];
     }

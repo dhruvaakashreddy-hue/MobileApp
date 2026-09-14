@@ -31,7 +31,9 @@ import {
   reconcileDelivered,
   registerListeners,
   requestPermission,
+  notificationBody,
   rescheduleAll,
+  takeOneNow,
   type NudgePayload,
   type PermissionState,
 } from '../lib/notifications';
@@ -74,6 +76,7 @@ interface AppState {
   signInWithPhone: (challenge: PhoneChallenge, code: string) => Promise<void>;
   saveProfile: (patch: ProfilePatch) => Promise<void>;
   requeueNext: () => Promise<void>;
+  nudgeMeNow: () => Promise<void>;
   profileComplete: boolean;
   continueAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -220,10 +223,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .filter((p) => p.fireAt <= now && p.fireAt > creditedThrough)
         .sort((a, b) => a.fireAt - b.fireAt);
 
-      if (due.length === 0) return;
+      if (due.length === 0) {
+        // Nothing due — but if nothing is scheduled either, the queue needs
+        // rebuilding now rather than waiting for the next app launch. This is
+        // what happens after an upgrade discards a plan written in an older
+        // shape: without it, nudges stop until the app is reopened.
+        if (!plan.some((p) => p.fireAt > now)) await syncFromSystem();
+        return;
+      }
 
       // Show the most recent one; older misses still get counted below.
       const latest = due[due.length - 1];
+      // Belt and braces: getPlan already drops malformed entries, but a card
+      // without both options has nothing to offer and must never be rendered.
+      if (!latest.healthy?.text || !latest.chaos?.text) {
+        await syncFromSystem();
+        return;
+      }
       if (!cancelled) {
         setActiveNudge({
           lineId: latest.lineId,
@@ -388,6 +404,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await persistSession(guestSession());
   }, [persistSession]);
 
+  /**
+   * Shows a this-or-that immediately, without touching the schedule. Takes from
+   * the same queue, so asking for one still counts against the no-repeat cycle.
+   */
+  const nudgeMeNow = useCallback(async () => {
+    const persona = getPersona(settingsRef.current.personaId);
+    const choice = await takeOneNow(settingsRef.current, persona);
+    if (!choice) return;
+    setActiveNudge({
+      lineId: choice.id,
+      personaId: persona.id,
+      text: notificationBody(choice.healthy.text, choice.chaos.text),
+      healthy: { id: choice.healthy.id, text: choice.healthy.text },
+      chaos: { id: choice.chaos.id, text: choice.chaos.text },
+    });
+  }, []);
+
   /** Restarts the countdown, so the next nudge is a full interval away. */
   /** Records which side of the this-or-that was taken, then closes the card. */
   const chooseNudge = useCallback(async (pick: 'healthy' | 'chaos') => {
@@ -440,6 +473,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       signInWithPhone,
       saveProfile,
       requeueNext,
+      nudgeMeNow,
       chooseNudge,
       profileComplete: session ? isProfileComplete(session.user) : false,
       continueAsGuest,
@@ -460,7 +494,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       ready, session, settings, stats, premium, premiumActive, permission,
       nextFireAt, activeNudge, sendPhoneCode, signInWithPhone, saveProfile,
-      requeueNext, chooseNudge,
+      requeueNext, nudgeMeNow, chooseNudge,
       continueAsGuest, signOut, updateSettings, setEnabled, selectPersona,
       toggleCategory, askPermission, completeOnboarding, buyPremium, restore,
       buzz, isPersonaLocked,

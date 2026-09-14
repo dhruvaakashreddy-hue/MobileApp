@@ -36,7 +36,12 @@ export function NudgeOverlay() {
     return () => window.removeEventListener('keydown', onKey);
   }, [activeNudge, dismissNudge]);
 
-  const persona = activeNudge ? getPersona(activeNudge.personaId) : null;
+  // A payload missing either option cannot be shown as a choice. Guarding here
+  // as well as at the source means no stored or notification payload, from any
+  // version, can take the whole screen down.
+  const usable =
+    !!activeNudge && !!activeNudge.healthy?.text && !!activeNudge.chaos?.text;
+  const persona = usable ? getPersona(activeNudge!.personaId) : null;
 
   const pick = async (choice: 'healthy' | 'chaos') => {
     if (picked) return;
@@ -49,7 +54,7 @@ export function NudgeOverlay() {
 
   return (
     <AnimatePresence>
-      {activeNudge && persona && (
+      {usable && activeNudge && persona && (
         <motion.div
           key="nudge-overlay"
           className="fixed inset-0 z-50 grid place-items-center p-4"

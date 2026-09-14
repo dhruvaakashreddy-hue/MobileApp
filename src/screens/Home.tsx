@@ -14,7 +14,7 @@ import {
 export function Home() {
   const {
     settings, stats, persona, nextFireAt, permission, session,
-    setEnabled, buzz, requeueNext,
+    setEnabled, buzz, requeueNext, nudgeMeNow,
   } = useApp();
   const navigate = useNavigate();
   const [now, setNow] = useState(Date.now());
@@ -234,15 +234,26 @@ export function Home() {
         <span className="text-white/30" aria-hidden>›</span>
       </button>
 
-      <button
-        onClick={handleQueueNext}
-        disabled={!settings.enabled}
-        className="tap mt-4 mb-6 w-full rounded-2xl border-2 border-dashed border-white/15 px-5 text-sm font-bold text-white/70 transition active:scale-[0.98] disabled:opacity-40"
-      >
-        {queued
-          ? `✅ Queued — arrives in ${formatInterval(settings.intervalMinutes)}`
-          : `🔔 Send me one in ${formatInterval(settings.intervalMinutes)}`}
-      </button>
+      <div className="mt-4 mb-6 grid grid-cols-2 gap-3">
+        <button
+          onClick={handleQueueNext}
+          disabled={!settings.enabled}
+          className="tap rounded-2xl border-2 border-dashed border-white/15 px-3 text-[13px] font-bold leading-tight text-white/70 transition active:scale-[0.98] disabled:opacity-40"
+        >
+          {queued
+            ? `✅ Queued for ${formatInterval(settings.intervalMinutes)}`
+            : `🔔 Send me one in ${formatInterval(settings.intervalMinutes)}`}
+        </button>
+        <button
+          onClick={() => {
+            buzz();
+            void nudgeMeNow();
+          }}
+          className={`tap rounded-2xl bg-gradient-to-br ${persona.theme.gradient} px-3 text-[13px] font-bold leading-tight text-white shadow-lg shadow-black/30 transition active:scale-[0.98]`}
+        >
+          ⚡ Send me one right now
+        </button>
+      </div>
     </Screen>
   );
 }

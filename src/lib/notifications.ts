@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import type { Persona } from '../types';
 import { getPersona } from '../data/personas';
 import { computeNextFireTime } from './scheduling';
-import { createQueue, takeFromQueue } from './nudgePool';
+import { createQueue, takeFromQueue, type NudgeChoice } from './nudgePool';
 import {
   creditNudge,
   store,
@@ -323,4 +323,25 @@ export async function registerListeners(
   );
 
   return handles;
+}
+
+/**
+ * Pulls one this-or-that for immediate display, consuming a queue entry so the
+ * no-repeat guarantee still holds — a nudge you asked for is still a nudge
+ * you've seen.
+ */
+export async function takeOneNow(
+  settings: Settings,
+  persona: Persona,
+): Promise<NudgeChoice | null> {
+  const stored = await store.getQueue();
+  const queue = stored ?? createQueue(persona, settings.categories);
+  const { choices, queue: next } = takeFromQueue(
+    queue,
+    persona,
+    settings.categories,
+    1,
+  );
+  await store.setQueue(next);
+  return choices[0] ?? null;
 }
