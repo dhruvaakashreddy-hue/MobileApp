@@ -87,7 +87,28 @@ const KEYS = {
   plan: 'nudge.plan',
   creditedThrough: 'nudge.creditedThrough',
   queue: 'nudge.queue',
+  accounts: 'nudge.accounts',
 } as const;
+
+/**
+ * What survives a sign-out, keyed by account.
+ *
+ * The session is deliberately thrown away when someone signs out, so anything
+ * that must outlive it cannot live inside the session object. Two things must:
+ * the profile, because being asked for your name again on every sign-in is
+ * absurd, and the entitlement, because a subscription belongs to the account
+ * that paid for it — not to the phone it was bought on.
+ */
+export interface AccountProfile {
+  displayName: string | null;
+  email: string | null;
+  photoUrl: string | null;
+}
+
+export interface AccountRecord {
+  profile: AccountProfile | null;
+  premium: Premium;
+}
 
 /** One scheduled nudge, mirrored locally so stats survive the app being killed. */
 export interface PlannedNudgeOption {
@@ -229,6 +250,37 @@ export const store = {
   },
   setPlan: (plan: PlannedNudge[]) => writeJSON(KEYS.plan, plan),
   clearPlan: () => Preferences.remove({ key: KEYS.plan }),
+
+  /** All known accounts on this device, keyed by the provider's user id. */
+  async getAccounts(): Promise<Record<string, AccountRecord>> {
+    try {
+      const { value } = await Preferences.get({ key: KEYS.accounts });
+      if (!value) return {};
+      const parsed = JSON.parse(value) as unknown;
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, AccountRecord>)
+        : {};
+    } catch {
+      return {};
+    }
+  },
+
+  async getAccount(userId: string): Promise<AccountRecord | null> {
+    const accounts = await this.getAccounts();
+    return accounts[userId] ?? null;
+  },
+
+  async saveAccount(
+    userId: string,
+    patch: Partial<AccountRecord>,
+  ): Promise<AccountRecord> {
+    const accounts = await this.getAccounts();
+    const current = accounts[userId] ?? { profile: null, premium: DEFAULT_PREMIUM };
+    const next: AccountRecord = { ...current, ...patch };
+    accounts[userId] = next;
+    await writeJSON(KEYS.accounts, accounts);
+    return next;
+  },
 
   async getQueue(): Promise<NudgeQueue | null> {
     try {

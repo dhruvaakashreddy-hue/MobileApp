@@ -6,7 +6,10 @@ persona you pick, at times you can't predict.
 Cross-platform (Android + iOS) via Capacitor. **Local-first: the nudge engine
 makes no network calls at all**, and all 90 lines ship bundled in the app.
 
-**Nudge is a paid app: ₹99/month.** Sign in, subscribe, then the app opens —
+**Nudge is a paid app: ₹99/month.** The profile and the subscription belong to
+the account, not the device — signing out and back in with the same number
+restores both, and a different number on the same phone gets neither.
+ Sign in, subscribe, then the app opens —
 there is no free tier and no guest mode, because a subscription needs an
 identity to attach to or it cannot be restored on a new phone. Sign-in and
 payment are the only networked features; everything about your actual day stays

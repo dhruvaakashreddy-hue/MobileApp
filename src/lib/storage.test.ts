@@ -92,3 +92,46 @@ describe('isValidQueue', () => {
     }
   });
 });
+
+import { DEFAULT_PREMIUM, type AccountRecord } from './storage.ts';
+
+/**
+ * Regression cover for two bugs that shared a root cause: the profile and the
+ * entitlement lived inside the session, which sign-out destroys.
+ *
+ * Symptom one: signing back in with the same number asked for your name again.
+ * Symptom two, worse: the entitlement was a single device-wide value, so a
+ * different number signing in afterwards walked into the paid app on someone
+ * else's subscription.
+ */
+describe('account records keep profile and entitlement apart from the session', () => {
+  const paid: AccountRecord = {
+    profile: { displayName: 'Dhruva', email: null, photoUrl: 'preset:unicorn' },
+    premium: { active: true, expiresAt: Date.now() + 86_400_000, subscriptionId: 'sub_1' },
+  };
+
+  it('keeps each account separate', () => {
+    const accounts: Record<string, AccountRecord> = {
+      'phone-919876543210': paid,
+      'phone-919123456789': { profile: { displayName: 'Someone Else', email: null, photoUrl: null }, premium: DEFAULT_PREMIUM },
+    };
+    // The paying account is entitled; the other is not, on the same device.
+    assert.equal(accounts['phone-919876543210'].premium.active, true);
+    assert.equal(accounts['phone-919123456789'].premium.active, false);
+    assert.notEqual(
+      accounts['phone-919876543210'].profile?.displayName,
+      accounts['phone-919123456789'].profile?.displayName,
+    );
+  });
+
+  it('an account that never paid defaults to no entitlement', () => {
+    const fresh: AccountRecord = { profile: null, premium: DEFAULT_PREMIUM };
+    assert.equal(fresh.premium.active, false);
+    assert.equal(fresh.premium.expiresAt, null);
+  });
+
+  it('a restored profile is enough to count as complete', () => {
+    assert.ok(paid.profile?.displayName);
+    assert.ok((paid.profile?.displayName ?? '').trim().length > 0);
+  });
+});

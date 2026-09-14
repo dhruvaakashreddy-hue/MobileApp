@@ -112,6 +112,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // state has not re-rendered yet, so any imperative call made in the same tick
   // (selecting the very persona that was just paid for) must not read the stale
   // value and decide it is still locked.
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+
   const premiumRef = useRef(premium);
   const applyPremium = useCallback((p: Premium) => {
     premiumRef.current = p;
@@ -388,6 +391,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const p = await unlockPremium();
       applyPremium(p);
+      const userId = sessionRef.current?.user.id;
+      if (userId) await store.saveAccount(userId, { premium: p });
       return isPremiumActive(p);
     } catch (err) {
       console.warn('[nudge] purchase failed', err);
@@ -398,6 +403,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const restore = useCallback(async () => {
     const p = await restorePurchases();
     applyPremium(p);
+    const userId = sessionRef.current?.user.id;
+    if (userId) await store.saveAccount(userId, { premium: p });
     return isPremiumActive(p);
   }, [applyPremium]);
 
@@ -414,9 +421,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signInWithPhone = useCallback(
     async (challenge: PhoneChallenge, code: string) => {
       const user = await authProvider.confirmPhoneCode(challenge, code);
-      await persistSession({ user, token: null, signedInAt: Date.now() });
+
+      // Restore what this account already had. The provider only knows the
+      // number; the name, picture and subscription belong to the account and
+      // were saved the last time it was signed in.
+      const account = await store.getAccount(user.id);
+      const restored: AuthUser = account?.profile
+        ? { ...user, ...account.profile }
+        : user;
+
+      // The entitlement is the account's, not the device's. Setting it here —
+      // including clearing it for an account that has never paid — is what
+      // stops a second number inheriting the first one's subscription.
+      const premiumForAccount = account?.premium ?? DEFAULT_PREMIUM;
+      await store.setPremium(premiumForAccount);
+      applyPremium(premiumForAccount);
+
+      await persistSession({ user: restored, token: null, signedInAt: Date.now() });
     },
-    [persistSession],
+    [persistSession, applyPremium],
   );
 
 
@@ -452,26 +475,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNextFireAt(plan[0]?.fireAt ?? null);
   }, []);
 
-  const saveProfile = useCallback(
-    async (patch: ProfilePatch) => {
-      setSession((current) => {
-        if (!current) return current;
-        const user: AuthUser = { ...current.user, ...patch };
-        const next: AuthSession = { ...current, user };
-        // Persist outside the updater so React's strict-mode double invoke
-        // cannot write twice.
-        void sessionStore.set(next);
-        return next;
-      });
-    },
-    [],
-  );
+  const saveProfile = useCallback(async (patch: ProfilePatch) => {
+    const current = sessionRef.current;
+    if (!current) return;
+
+    const user: AuthUser = { ...current.user, ...patch };
+    const next: AuthSession = { ...current, user };
+    setSession(next);
+    await sessionStore.set(next);
+    // Also against the account, so it survives signing out.
+    await store.saveAccount(user.id, {
+      profile: {
+        displayName: patch.displayName,
+        email: patch.email,
+        photoUrl: patch.photoUrl,
+      },
+    });
+  }, []);
 
   const signOut = useCallback(async () => {
     await authProvider.signOut();
     await sessionStore.clear();
+    // The account keeps its own copy; this clears the *active* entitlement so
+    // the next person to sign in on this phone starts with none.
+    await store.setPremium(DEFAULT_PREMIUM);
+    applyPremium(DEFAULT_PREMIUM);
     setSession(null);
-  }, []);
+  }, [applyPremium]);
 
   const value = useMemo<AppState>(
     () => ({
