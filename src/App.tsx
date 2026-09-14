@@ -18,16 +18,12 @@ import { isNative } from './lib/notifications';
 import { useBackButton } from './lib/useBackButton';
 
 function Routed() {
-  const { ready, session, profileComplete, settings, activeNudge, dismissNudge } =
-    useApp();
+  const { ready, session, profileComplete, settings, activeNudge } = useApp();
   const location = useLocation();
 
-  // Back closes the nudge card before it touches navigation.
-  useBackButton(() => {
-    if (!activeNudge) return false;
-    dismissNudge();
-    return true;
-  });
+  // While a nudge card is up, back is swallowed: answering it is mandatory, so
+  // the gesture must neither close the card nor navigate away behind it.
+  useBackButton(() => !!activeNudge);
 
   useEffect(() => {
     if (!ready || !isNative()) return;

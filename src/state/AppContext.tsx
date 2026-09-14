@@ -90,7 +90,6 @@ interface AppState {
   buyPremium: () => Promise<boolean>;
   restore: () => Promise<boolean>;
   showNudge: (payload: NudgePayload) => void;
-  dismissNudge: () => void;
   chooseNudge: (pick: 'healthy' | 'chaos') => Promise<void>;
   buzz: (style?: ImpactStyle) => void;
   isPersonaLocked: (persona: Persona) => boolean;
@@ -503,7 +502,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       buyPremium,
       restore,
       showNudge: setActiveNudge,
-      dismissNudge: () => setActiveNudge(null),
       buzz,
       isPersonaLocked,
     }),

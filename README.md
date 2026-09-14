@@ -52,10 +52,12 @@ that makes a stranger the punchline, and nothing you couldn't do in a shared
 house or an open-plan office. Mild self-embarrassment is the point; anyone
 else's is not.
 
-Which side people pick is tracked and shown on Home as a split bar. The card can
-still be dismissed without answering — tap outside it, or use the back gesture —
-it just isn't offered as a button, so the card asks for a decision rather than
-inviting a shrug. A dismissal records nothing either way.
+Answering is mandatory. There is no dismiss, tapping outside does nothing, and
+the Android back gesture is swallowed while the card is up — the only way past
+it is to pick a side. Trying to escape shakes the card rather than ignoring the
+tap, because silence would read as the app being frozen.
+
+Which side people pick is tracked and shown on Home as a split bar.
 
 ### The nudge pool: 5,000 per persona, no repeats
 

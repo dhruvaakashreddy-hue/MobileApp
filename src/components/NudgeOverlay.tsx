@@ -1,5 +1,10 @@
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import {
+  AnimatePresence,
+  motion,
+  useAnimationControls,
+  useReducedMotion,
+} from 'framer-motion';
+import { useCallback, useEffect, useState } from 'react';
 import { ImpactStyle } from '@capacitor/haptics';
 import { getPersona } from '../data/personas';
 import { playPersonaSound } from '../lib/sound';
@@ -14,9 +19,27 @@ import { useApp } from '../state/AppContext';
  * gets them off the chair.
  */
 export function NudgeOverlay() {
-  const { activeNudge, dismissNudge, chooseNudge, buzz, settings } = useApp();
+  const { activeNudge, chooseNudge, buzz, settings } = useApp();
   const reduceMotion = useReducedMotion();
   const [picked, setPicked] = useState<'healthy' | 'chaos' | null>(null);
+  const controls = useAnimationControls();
+
+  /**
+   * Answering is mandatory, so there is no dismiss. Trying to escape shakes the
+   * card instead of doing nothing — silence would read as the app being frozen,
+   * where a shake says "pick one" without needing words.
+   *
+   * Driven imperatively rather than through a changing `animate` prop, so that
+   * repeated attempts each replay the shake instead of only the first.
+   */
+  const nag = useCallback(() => {
+    buzz(ImpactStyle.Heavy);
+    if (reduceMotion) return;
+    void controls.start({
+      x: [0, -10, 10, -7, 7, -3, 0],
+      transition: { duration: 0.42, ease: 'easeInOut' },
+    });
+  }, [buzz, controls, reduceMotion]);
 
   useEffect(() => {
     if (!activeNudge) {
@@ -27,14 +50,18 @@ export function NudgeOverlay() {
     playPersonaSound(getPersona(activeNudge.personaId), settings.soundEnabled);
   }, [activeNudge, buzz, settings.soundEnabled]);
 
+  // Escape used to close this. It must not, for the same reason.
   useEffect(() => {
     if (!activeNudge) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismissNudge();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        nag();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [activeNudge, dismissNudge]);
+  }, [activeNudge, nag]);
 
   // A payload missing either option cannot be shown as a choice. Guarding here
   // as well as at the source means no stored or notification payload, from any
@@ -42,6 +69,17 @@ export function NudgeOverlay() {
   const usable =
     !!activeNudge && !!activeNudge.healthy?.text && !!activeNudge.chaos?.text;
   const persona = usable ? getPersona(activeNudge!.personaId) : null;
+
+  // Play the entrance through the same controls the shake uses.
+  useEffect(() => {
+    if (!activeNudge) return;
+    void controls.start({
+      scale: 1,
+      opacity: 1,
+      y: 0,
+      transition: { type: 'spring', stiffness: 460, damping: 26, mass: 0.7 },
+    });
+  }, [activeNudge, controls]);
 
   const pick = async (choice: 'healthy' | 'chaos') => {
     if (picked) return;
@@ -66,19 +104,18 @@ export function NudgeOverlay() {
           aria-modal="true"
           aria-label={`${persona.name} says: pick one`}
         >
-          <button
-            aria-label="Dismiss"
-            tabIndex={-1}
-            onClick={dismissNudge}
-            className="absolute inset-0 h-full w-full cursor-default bg-black/75 backdrop-blur-md"
+          {/* Not a button: tapping outside cannot dismiss a required choice. */}
+          <div
+            aria-hidden
+            onClick={nag}
+            className="absolute inset-0 h-full w-full bg-black/80 backdrop-blur-md"
           />
 
           <motion.div
             className={`relative w-full max-w-sm overflow-hidden rounded-[2rem] bg-gradient-to-br ${persona.theme.gradient} p-[2px] shadow-2xl`}
             initial={reduceMotion ? { opacity: 0 } : { scale: 0.85, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
+            animate={controls}
             exit={reduceMotion ? { opacity: 0 } : { scale: 0.94, opacity: 0, y: 10 }}
-            transition={{ type: 'spring', stiffness: 460, damping: 26, mass: 0.7 }}
           >
             <div className="rounded-[calc(2rem-2px)] bg-ink/95 px-4 pt-6 pb-6">
               <div className="flex flex-col items-center text-center">
@@ -99,7 +136,7 @@ export function NudgeOverlay() {
                   This or that?
                 </h2>
                 <p className="mt-1 text-[13px] text-white/45">
-                  Pick one. Either counts.
+                  Pick one to carry on. Either counts.
                 </p>
               </div>
 
