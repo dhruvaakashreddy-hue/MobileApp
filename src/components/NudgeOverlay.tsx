@@ -80,7 +80,7 @@ export function NudgeOverlay() {
             exit={reduceMotion ? { opacity: 0 } : { scale: 0.94, opacity: 0, y: 10 }}
             transition={{ type: 'spring', stiffness: 460, damping: 26, mass: 0.7 }}
           >
-            <div className="rounded-[calc(2rem-2px)] bg-ink/95 px-4 pt-6 pb-5">
+            <div className="rounded-[calc(2rem-2px)] bg-ink/95 px-4 pt-6 pb-6">
               <div className="flex flex-col items-center text-center">
                 <motion.span
                   className="mb-3 grid h-16 w-16 place-items-center rounded-full bg-white/10 text-3xl"
@@ -134,14 +134,6 @@ export function NudgeOverlay() {
                   onClick={() => void pick('chaos')}
                 />
               </div>
-
-              <button
-                onClick={dismissNudge}
-                disabled={!!picked}
-                className="tap mt-3 w-full rounded-2xl text-sm font-semibold text-white/35 transition active:bg-white/5 disabled:opacity-0"
-              >
-                Neither, leave me alone
-              </button>
             </div>
           </motion.div>
         </motion.div>

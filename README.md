@@ -52,8 +52,10 @@ that makes a stranger the punchline, and nothing you couldn't do in a shared
 house or an open-plan office. Mild self-embarrassment is the point; anyone
 else's is not.
 
-Which side people pick is tracked and shown on Home as a split bar. "Neither"
-closes the card without recording anything.
+Which side people pick is tracked and shown on Home as a split bar. The card can
+still be dismissed without answering — tap outside it, or use the back gesture —
+it just isn't offered as a button, so the card asks for a decision rather than
+inviting a shrug. A dismissal records nothing either way.
 
 ### The nudge pool: 5,000 per persona, no repeats
 
