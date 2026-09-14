@@ -16,6 +16,7 @@ import {
   DEFAULT_PREMIUM,
   DEFAULT_SETTINGS,
   DEFAULT_STATS,
+  creditChoice,
   normalizeStats,
   store,
   type Premium,
@@ -87,6 +88,7 @@ interface AppState {
   restore: () => Promise<boolean>;
   showNudge: (payload: NudgePayload) => void;
   dismissNudge: () => void;
+  chooseNudge: (pick: 'healthy' | 'chaos') => Promise<void>;
   buzz: (style?: ImpactStyle) => void;
   isPersonaLocked: (persona: Persona) => boolean;
 }
@@ -227,6 +229,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           lineId: latest.lineId,
           personaId: latest.personaId,
           text: latest.text,
+          healthy: latest.healthy,
+          chaos: latest.chaos,
         });
       }
       await syncFromSystem();
@@ -385,6 +389,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [persistSession]);
 
   /** Restarts the countdown, so the next nudge is a full interval away. */
+  /** Records which side of the this-or-that was taken, then closes the card. */
+  const chooseNudge = useCallback(async (pick: 'healthy' | 'chaos') => {
+    const current = await store.getStats();
+    const next = creditChoice(current, pick);
+    await store.setStats(next);
+    setStats(normalizeStats(next));
+    setActiveNudge(null);
+  }, []);
+
   const requeueNext = useCallback(async () => {
     const plan = await rescheduleAll(settingsRef.current);
     setNextFireAt(plan[0]?.fireAt ?? null);
@@ -427,6 +440,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       signInWithPhone,
       saveProfile,
       requeueNext,
+      chooseNudge,
       profileComplete: session ? isProfileComplete(session.user) : false,
       continueAsGuest,
       signOut,
@@ -446,7 +460,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       ready, session, settings, stats, premium, premiumActive, permission,
       nextFireAt, activeNudge, sendPhoneCode, signInWithPhone, saveProfile,
-      requeueNext,
+      requeueNext, chooseNudge,
       continueAsGuest, signOut, updateSettings, setEnabled, selectPersona,
       toggleCategory, askPermission, completeOnboarding, buyPremium, restore,
       buzz, isPersonaLocked,

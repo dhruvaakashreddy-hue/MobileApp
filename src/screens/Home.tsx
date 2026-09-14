@@ -27,6 +27,7 @@ export function Home() {
   }, []);
 
   const blocked = permission === 'denied';
+  const picks = stats.healthyPicks + stats.chaosPicks;
 
   const handleToggle = async () => {
     buzz(ImpactStyle.Medium);
@@ -173,12 +174,39 @@ export function Home() {
       {/* Stats */}
       <div className="mt-4 grid grid-cols-2 gap-3">
         <Stat value={stats.todayCount} label="nudges today" emoji="📬" />
-        <Stat
-          value={stats.streak}
-          label={stats.streak === 1 ? 'day streak' : 'day streak'}
-          emoji="🔥"
-        />
+        <Stat value={stats.streak} label="day streak" emoji="🔥" />
       </div>
+
+      {picks > 0 && (
+        <Card className="mt-3">
+          <div className="flex items-baseline justify-between">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/40">
+              This or that
+            </p>
+            <p className="text-[13px] font-semibold text-white/55">
+              {picks} answered
+            </p>
+          </div>
+          <div
+            className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-white/10"
+            role="img"
+            aria-label={`${stats.healthyPicks} sensible, ${stats.chaosPicks} chaotic`}
+          >
+            <span
+              className="bg-emerald-400"
+              style={{ width: `${(stats.healthyPicks / picks) * 100}%` }}
+            />
+            <span
+              className="bg-fuchsia-400"
+              style={{ width: `${(stats.chaosPicks / picks) * 100}%` }}
+            />
+          </div>
+          <div className="mt-2 flex justify-between text-[13px]">
+            <span className="text-emerald-300">💪 {stats.healthyPicks} sensible</span>
+            <span className="text-fuchsia-300">{stats.chaosPicks} chaotic 🌀</span>
+          </div>
+        </Card>
+      )}
 
       {/* Persona */}
       <button

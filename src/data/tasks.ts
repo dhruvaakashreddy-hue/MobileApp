@@ -23,6 +23,20 @@ export interface TaskAction {
   category: NudgeCategory;
 }
 
+/**
+ * The chaotic half of every this-or-that.
+ *
+ * Rules these all follow, because a nudge that gets someone in trouble is a bad
+ * nudge: nothing unsafe, nothing that damages anything, nothing that makes a
+ * stranger the punchline, and nothing you couldn't do in a shared house or an
+ * open-plan office. Mild self-embarrassment is the whole point; anyone else's
+ * embarrassment is not.
+ */
+export interface ChaosAction {
+  id: string;
+  text: string;
+}
+
 const a = (id: string, category: NudgeCategory, text: string): TaskAction => ({
   id,
   category,
@@ -141,4 +155,59 @@ export const TASK_ACTIONS: TaskAction[] = [
   a('w14', 'work', 'take a break before you need one'),
   a('w15', 'work', 'stand up before your next meeting'),
   a('w16', 'work', 'look away from the screen for twenty seconds'),
+];
+
+const c = (id: string, text: string): ChaosAction => ({ id, text });
+
+export const CHAOS_ACTIONS: ChaosAction[] = [
+  c('c1', 'do your best evil laugh, out loud'),
+  c('c2', 'give the nearest object a full name and backstory'),
+  c('c3', 'narrate the next thirty seconds like a nature documentary'),
+  c('c4', 'walk to the next room like you\'re in a music video'),
+  c('c5', 'text a friend the worst photo of yourself you own'),
+  c('c6', 'speak in an accent for the next two minutes'),
+  c('c7', 'declare war on a houseplant, verbally'),
+  c('c8', 'compliment an inanimate object, sincerely'),
+  c('c9', 'do a dramatic slow-motion stretch'),
+  c('c10', 'send someone a voice note of you humming, no context'),
+  c('c11', 'hold a staring contest with the nearest pet or poster'),
+  c('c12', 'introduce yourself to the room like it\'s a talk show'),
+  c('c13', 'text someone \'i knew it\' and nothing else'),
+  c('c14', 'invent a handshake and practise it alone'),
+  c('c15', 'give a two-sentence TED talk to no one'),
+  c('c16', 'do one lap of the room walking backwards'),
+  c('c17', 'rate the last thing you ate out of ten, out loud'),
+  c('c18', 'pick a theme song for the rest of your day'),
+  c('c19', 'do a victory pose for no reason'),
+  c('c20', 'whisper your to-do list menacingly'),
+  c('c21', 'name your chair. commit to it.'),
+  c('c22', 'do the worst dance you can for ten seconds'),
+  c('c23', 'describe your outfit like an auction lot'),
+  c('c24', 'send a friend a photo of your left shoe'),
+  c('c25', 'practise your acceptance speech for an award you\'ll never win'),
+  c('c26', 'balance something harmless on your head for ten seconds'),
+  c('c27', 'read the nearest label in a villain voice'),
+  c('c28', 'do a dramatic sigh loud enough to concern someone'),
+  c('c29', 'high-five yourself. both hands. count it.'),
+  c('c30', 'give the weather a one-star review out loud'),
+  c('c31', 'walk somewhere with maximum unearned confidence'),
+  c('c32', 'narrate your next three actions in the third person'),
+  c('c33', 'hum the same four notes until it becomes a problem'),
+  c('c34', 'give your phone a stern talking-to'),
+  c('c35', 'do an impression of yourself at 7am'),
+  c('c36', 'pick a fight with a mirror, lose it'),
+  c('c37', 'text someone a single emoji with total confidence'),
+  c('c38', 'do a slow clap for a task you already finished'),
+  c('c39', 'explain your job to the nearest wall'),
+  c('c40', 'give one household object a promotion'),
+  c('c41', 'practise a fake laugh until one real one escapes'),
+  c('c42', 'announce your next move like a sports commentator'),
+  c('c43', 'take the most unflattering selfie possible and keep it'),
+  c('c44', 'salute the fridge'),
+  c('c45', 'do a dramatic reading of the last text you received'),
+  c('c46', 'stand up and stretch like you just woke up in a film'),
+  c('c47', 'name three things in the room as if you\'re a pirate'),
+  c('c48', 'give yourself a nickname and use it once today'),
+  c('c49', 'do a lap of honour around your own chair'),
+  c('c50', 'apologise to a plant for something you didn\'t do'),
 ];

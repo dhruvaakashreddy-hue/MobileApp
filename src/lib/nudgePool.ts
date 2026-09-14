@@ -1,5 +1,10 @@
 import type { NudgeCategory, Persona } from '../types';
-import { TASK_ACTIONS, type TaskAction } from '../data/tasks.ts';
+import {
+  CHAOS_ACTIONS,
+  TASK_ACTIONS,
+  type ChaosAction,
+  type TaskAction,
+} from '../data/tasks.ts';
 
 /**
  * The nudge pool and its no-repeat queue.
@@ -40,9 +45,14 @@ export function actionsFor(categories: NudgeCategory[]): TaskAction[] {
   return TASK_ACTIONS.filter((t) => enabled.has(t.category));
 }
 
-/** How many distinct nudges exist for this persona and category selection. */
+/** How many distinct healthy nudges exist for this persona and selection. */
 export function poolSize(persona: Persona, categories: NudgeCategory[]): number {
   return persona.wrappers.length * actionsFor(categories).length;
+}
+
+/** How many distinct chaos nudges exist for this persona. */
+export function chaosPoolSize(persona: Persona): number {
+  return persona.wrappers.length * CHAOS_ACTIONS.length;
 }
 
 export interface RenderedNudge {
@@ -52,6 +62,18 @@ export interface RenderedNudge {
   category: NudgeCategory;
 }
 
+/**
+ * One this-or-that: a real task on one side, something ridiculous on the other.
+ * The user picks. Both are phrased by the same persona, so the choice feels
+ * like one character offering two options rather than two different voices.
+ */
+export interface NudgeChoice {
+  /** Combined id for the pair — what the no-repeat guarantee is measured on. */
+  id: string;
+  healthy: RenderedNudge;
+  chaos: RenderedNudge;
+}
+
 /** Drill Sergeant shouts; the phrasings are authored in caps already. */
 function applyVoice(persona: Persona, text: string): string {
   return persona.id === 'drill-sergeant' ? text.toUpperCase() : text;
@@ -59,7 +81,7 @@ function applyVoice(persona: Persona, text: string): string {
 
 export function renderNudge(
   persona: Persona,
-  action: TaskAction,
+  action: TaskAction | ChaosAction,
   wrapperIndex: number,
 ): string {
   const wrapper = persona.wrappers[wrapperIndex % persona.wrappers.length];
@@ -88,6 +110,20 @@ export function nudgeAt(
   };
 }
 
+/** Maps a chaos-pool index to its rendered nudge. */
+export function chaosAt(persona: Persona, index: number): RenderedNudge {
+  const wrapperCount = persona.wrappers.length;
+  const wrapperIndex = index % wrapperCount;
+  const action =
+    CHAOS_ACTIONS[Math.floor(index / wrapperCount) % CHAOS_ACTIONS.length];
+
+  return {
+    id: `${persona.id}:chaos:${wrapperIndex}:${action.id}`,
+    text: renderNudge(persona, action, wrapperIndex),
+    category: 'random',
+  };
+}
+
 // ─── The queue ────────────────────────────────────────────────────────────
 
 export interface NudgeQueue {
@@ -98,6 +134,13 @@ export interface NudgeQueue {
   cursor: number;
   /** Completed full passes — shown as "you've seen all 5,000" bragging rights. */
   cycles: number;
+  /**
+   * The chaos side runs its own independent cycle, because the two pools are
+   * different sizes. Pairing them off a single cursor would lock each healthy
+   * task to the same chaotic partner forever.
+   */
+  chaosSeed: number;
+  chaosCursor: number;
 }
 
 /** Persona plus enabled categories: change either and the pool itself changed. */
@@ -112,8 +155,16 @@ export function createQueue(
   persona: Persona,
   categories: NudgeCategory[],
   seed = Math.floor(Math.random() * 0xffffffff),
+  chaosSeed = Math.floor(Math.random() * 0xffffffff),
 ): NudgeQueue {
-  return { poolKey: poolKeyFor(persona, categories), seed, cursor: 0, cycles: 0 };
+  return {
+    poolKey: poolKeyFor(persona, categories),
+    seed,
+    cursor: 0,
+    cycles: 0,
+    chaosSeed,
+    chaosCursor: 0,
+  };
 }
 
 /**
@@ -126,34 +177,58 @@ export function takeFromQueue(
   persona: Persona,
   categories: NudgeCategory[],
   count: number,
-): { nudges: RenderedNudge[]; queue: NudgeQueue } {
+): { choices: NudgeChoice[]; queue: NudgeQueue } {
   const size = poolSize(persona, categories);
-  if (size === 0) return { nudges: [], queue };
+  const chaosSize = chaosPoolSize(persona);
+  if (size === 0 || chaosSize === 0) return { choices: [], queue };
 
   const key = poolKeyFor(persona, categories);
   let current: NudgeQueue =
     queue.poolKey === key ? { ...queue } : createQueue(persona, categories);
 
-  const nudges: RenderedNudge[] = [];
+  const choices: NudgeChoice[] = [];
   let order = seededOrder(size, current.seed);
+  let chaosOrder = seededOrder(chaosSize, current.chaosSeed);
 
   for (let i = 0; i < count; i++) {
     if (current.cursor >= size) {
       // Pool exhausted — everything has been seen once. New cycle, new order.
       current = {
-        poolKey: key,
-        seed: (current.seed * 1664525 + 1013904223) >>> 0,
+        ...current,
+        seed: nextSeed(current.seed),
         cursor: 0,
         cycles: current.cycles + 1,
       };
       order = seededOrder(size, current.seed);
     }
-    const nudge = nudgeAt(persona, categories, order[current.cursor]);
-    current = { ...current, cursor: current.cursor + 1 };
-    if (nudge) nudges.push(nudge);
+    if (current.chaosCursor >= chaosSize) {
+      current = {
+        ...current,
+        chaosSeed: nextSeed(current.chaosSeed),
+        chaosCursor: 0,
+      };
+      chaosOrder = seededOrder(chaosSize, current.chaosSeed);
+    }
+
+    const healthy = nudgeAt(persona, categories, order[current.cursor]);
+    const chaos = chaosAt(persona, chaosOrder[current.chaosCursor]);
+    current = {
+      ...current,
+      cursor: current.cursor + 1,
+      chaosCursor: current.chaosCursor + 1,
+    };
+
+    if (healthy) {
+      choices.push({ id: `${healthy.id}|${chaos.id}`, healthy, chaos });
+    }
   }
 
-  return { nudges, queue: current };
+  return { choices, queue: current };
+}
+
+/** Linear congruential step — a new, well-spread seed for the next cycle. */
+function nextSeed(seed: number): number {
+  return (seed * 1664525 + 1013904223) >>> 0;
 }
 
 /** How many nudges remain in this cycle before anything repeats. */

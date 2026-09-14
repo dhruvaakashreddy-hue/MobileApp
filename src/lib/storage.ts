@@ -27,6 +27,9 @@ export interface Settings {
 export interface Stats {
   /** Nudges delivered on `todayKey`. */
   todayCount: number;
+  /** How many this-or-thats were answered each way, all time. */
+  healthyPicks: number;
+  chaosPicks: number;
   todayKey: string;
   /** Consecutive days with at least one nudge received. */
   streak: number;
@@ -57,6 +60,8 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export const DEFAULT_STATS: Stats = {
   todayCount: 0,
+  healthyPicks: 0,
+  chaosPicks: 0,
   todayKey: '',
   streak: 0,
   lastStreakKey: '',
@@ -81,12 +86,21 @@ const KEYS = {
 } as const;
 
 /** One scheduled nudge, mirrored locally so stats survive the app being killed. */
+export interface PlannedNudgeOption {
+  id: string;
+  text: string;
+}
+
 export interface PlannedNudge {
   notificationId: number;
   fireAt: number;
+  /** Id of the pair, for the no-repeat guarantee. */
   lineId: string;
   personaId: string;
+  /** What the OS notification says — both options, condensed. */
   text: string;
+  healthy: PlannedNudgeOption;
+  chaos: PlannedNudgeOption;
 }
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -188,12 +202,23 @@ export function creditNudge(stats: Stats, now: Date = new Date()): Stats {
   }
 
   return {
+    ...stats,
     todayCount: sameDay ? stats.todayCount + 1 : 1,
     todayKey: key,
     streak,
     lastStreakKey: key,
     totalCount: stats.totalCount + 1,
   };
+}
+
+/** Records which side of a this-or-that the user went with. */
+export function creditChoice(
+  stats: Stats,
+  pick: 'healthy' | 'chaos',
+): Stats {
+  return pick === 'healthy'
+    ? { ...stats, healthyPicks: stats.healthyPicks + 1 }
+    : { ...stats, chaosPicks: stats.chaosPicks + 1 };
 }
 
 /** Zeroes the day counter for display when the stored day is stale. */

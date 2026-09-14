@@ -33,6 +33,8 @@ export interface NudgePayload {
   lineId: string;
   personaId: string;
   text: string;
+  healthy: { id: string; text: string };
+  chaos: { id: string; text: string };
 }
 
 export function isNative(): boolean {
@@ -114,7 +116,7 @@ export async function buildPlan(
 
   // Draw the whole batch from the no-repeat queue in one go, so the buffer
   // never contains a duplicate of something else already queued.
-  const { nudges, queue: nextQueue } = takeFromQueue(
+  const { choices, queue: nextQueue } = takeFromQueue(
     queue,
     persona,
     settings.categories,
@@ -126,18 +128,29 @@ export async function buildPlan(
   const plan: PlannedNudge[] = [];
   let cursor = now;
 
-  for (let i = 0; i < nudges.length; i++) {
+  for (let i = 0; i < choices.length; i++) {
     const fireAt = computeNextFireTime(cursor, settings);
+    const { healthy, chaos } = choices[i];
     plan.push({
       notificationId: ID_BASE + i,
       fireAt: fireAt.getTime(),
-      lineId: nudges[i].id,
+      lineId: choices[i].id,
       personaId: persona.id,
-      text: nudges[i].text,
+      text: notificationBody(healthy.text, chaos.text),
+      healthy: { id: healthy.id, text: healthy.text },
+      chaos: { id: chaos.id, text: chaos.text },
     });
     cursor = fireAt;
   }
   return plan;
+}
+
+/**
+ * The OS banner has to carry both options — it is the only thing a user sees
+ * before they decide whether to open the app.
+ */
+export function notificationBody(healthy: string, chaos: string): string {
+  return `1) ${healthy}\n2) ${chaos}`;
 }
 
 export async function cancelAll(): Promise<void> {
@@ -200,6 +213,8 @@ export async function rescheduleAll(settings: Settings): Promise<PlannedNudge[]>
           lineId: p.lineId,
           personaId: p.personaId,
           text: p.text,
+          healthy: p.healthy,
+          chaos: p.chaos,
         } satisfies NudgePayload,
       })),
     });
@@ -254,10 +269,27 @@ export function parsePayload(extra: unknown): NudgePayload | null {
   if (!extra || typeof extra !== 'object') return null;
   const e = extra as Record<string, unknown>;
   if (typeof e.text !== 'string' || typeof e.personaId !== 'string') return null;
+
+  const option = (v: unknown): { id: string; text: string } | null => {
+    if (!v || typeof v !== 'object') return null;
+    const o = v as Record<string, unknown>;
+    return typeof o.text === 'string'
+      ? { id: typeof o.id === 'string' ? o.id : '', text: o.text }
+      : null;
+  };
+
+  const healthy = option(e.healthy);
+  const chaos = option(e.chaos);
+  // A notification scheduled by an older build has no options; without both
+  // there is no choice to offer, so ignore it rather than render half a card.
+  if (!healthy || !chaos) return null;
+
   return {
     text: e.text,
     personaId: e.personaId,
     lineId: typeof e.lineId === 'string' ? e.lineId : '',
+    healthy,
+    chaos,
   };
 }
 
@@ -291,34 +323,4 @@ export async function registerListeners(
   );
 
   return handles;
-}
-
-/** Fires a nudge a few seconds from now so the user can feel what it's like. */
-export async function sendTestNudge(
-  settings: Settings,
-  text: string,
-): Promise<void> {
-  const persona = getPersona(settings.personaId);
-  if (!isNative()) return;
-  await ensureChannels([persona]);
-  try {
-    await LocalNotifications.schedule({
-      notifications: [
-        {
-          id: ID_BASE + 199,
-          title: `${persona.emoji} ${persona.name}`,
-          body: text,
-          schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true },
-          channelId: channelId(persona, settings.soundEnabled),
-          sound: settings.soundEnabled ? `${persona.sound}.wav` : undefined,
-          smallIcon: 'ic_stat_nudge',
-          largeIcon: `persona_${persona.id.replace(/-/g, '_')}`,
-          iconColor: persona.theme.hex,
-          extra: { lineId: 'preview', personaId: persona.id, text },
-        },
-      ],
-    });
-  } catch (err) {
-    console.warn('[nudge] test nudge failed', err);
-  }
 }

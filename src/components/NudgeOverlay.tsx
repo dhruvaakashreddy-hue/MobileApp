@@ -1,28 +1,32 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ImpactStyle } from '@capacitor/haptics';
 import { getPersona } from '../data/personas';
 import { playPersonaSound } from '../lib/sound';
 import { useApp } from '../state/AppContext';
 
 /**
- * The in-app card that replaces the plain OS banner whenever the app is open —
- * and that a tapped notification reopens the app straight into, reconstructed
- * from the notification's `extra` payload.
+ * The this-or-that card.
+ *
+ * Every nudge offers two things to do: the one that's good for you, and the one
+ * that's ridiculous. Making the user pick turns a notification they'd swipe
+ * away into a five-second decision they'll actually act on — and either answer
+ * gets them off the chair.
  */
 export function NudgeOverlay() {
-  const { activeNudge, dismissNudge, buzz, settings } = useApp();
+  const { activeNudge, dismissNudge, chooseNudge, buzz, settings } = useApp();
   const reduceMotion = useReducedMotion();
+  const [picked, setPicked] = useState<'healthy' | 'chaos' | null>(null);
 
   useEffect(() => {
-    if (!activeNudge) return;
+    if (!activeNudge) {
+      setPicked(null);
+      return;
+    }
     buzz(ImpactStyle.Medium);
-    // The OS suppresses its own banner and sound while the app is open, so the
-    // card plays the persona's sound itself. Honours the Settings toggle.
     playPersonaSound(getPersona(activeNudge.personaId), settings.soundEnabled);
   }, [activeNudge, buzz, settings.soundEnabled]);
 
-  // Hardware back / Escape should dismiss, like any other modal.
   useEffect(() => {
     if (!activeNudge) return;
     const onKey = (e: KeyboardEvent) => {
@@ -34,72 +38,159 @@ export function NudgeOverlay() {
 
   const persona = activeNudge ? getPersona(activeNudge.personaId) : null;
 
+  const pick = async (choice: 'healthy' | 'chaos') => {
+    if (picked) return;
+    buzz(ImpactStyle.Heavy);
+    setPicked(choice);
+    // Let the chosen card's confirmation land before the overlay closes.
+    await new Promise((r) => setTimeout(r, reduceMotion ? 0 : 420));
+    await chooseNudge(choice);
+  };
+
   return (
     <AnimatePresence>
       {activeNudge && persona && (
         <motion.div
           key="nudge-overlay"
-          className="fixed inset-0 z-50 grid place-items-center p-5"
+          className="fixed inset-0 z-50 grid place-items-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
           role="alertdialog"
           aria-modal="true"
-          aria-label={`${persona.name} says`}
+          aria-label={`${persona.name} says: pick one`}
         >
           <button
             aria-label="Dismiss"
             tabIndex={-1}
             onClick={dismissNudge}
-            className="absolute inset-0 h-full w-full cursor-default bg-black/70 backdrop-blur-md"
+            className="absolute inset-0 h-full w-full cursor-default bg-black/75 backdrop-blur-md"
           />
 
           <motion.div
             className={`relative w-full max-w-sm overflow-hidden rounded-[2rem] bg-gradient-to-br ${persona.theme.gradient} p-[2px] shadow-2xl`}
-            initial={reduceMotion ? { opacity: 0 } : { scale: 0.8, opacity: 0, y: 24 }}
+            initial={reduceMotion ? { opacity: 0 } : { scale: 0.85, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { scale: 0.92, opacity: 0, y: 12 }}
-            // Snappy spring: settles in well under 400ms.
+            exit={reduceMotion ? { opacity: 0 } : { scale: 0.94, opacity: 0, y: 10 }}
             transition={{ type: 'spring', stiffness: 460, damping: 26, mass: 0.7 }}
           >
-            <div className="rounded-[calc(2rem-2px)] bg-ink/92 px-6 pt-8 pb-6 text-center">
-              <motion.div
-                className="mx-auto mb-5 grid h-24 w-24 place-items-center rounded-full bg-white/10 text-5xl"
-                aria-hidden
-                animate={
-                  reduceMotion
-                    ? undefined
-                    : { rotate: [-7, 7, -7], scale: [1, 1.06, 1] }
-                }
-                transition={{
-                  duration: 1.6,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-              >
-                {persona.emoji}
-              </motion.div>
+            <div className="rounded-[calc(2rem-2px)] bg-ink/95 px-4 pt-6 pb-5">
+              <div className="flex flex-col items-center text-center">
+                <motion.span
+                  className="mb-3 grid h-16 w-16 place-items-center rounded-full bg-white/10 text-3xl"
+                  aria-hidden
+                  animate={
+                    reduceMotion ? undefined : { rotate: [-7, 7, -7], scale: [1, 1.05, 1] }
+                  }
+                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  {persona.emoji}
+                </motion.span>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/45">
+                  {persona.name}
+                </p>
+                <h2 className="mt-1 font-display text-2xl leading-none tracking-tight">
+                  This or that?
+                </h2>
+                <p className="mt-1 text-[13px] text-white/45">
+                  Pick one. Either counts.
+                </p>
+              </div>
 
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/45">
-                {persona.name}
-              </p>
+              <div className="mt-5 flex flex-col gap-3">
+                <ChoiceCard
+                  label="The good one"
+                  emoji="💪"
+                  text={activeNudge.healthy.text}
+                  accent="ring-emerald-400/70"
+                  glow="bg-emerald-500/10"
+                  chosen={picked === 'healthy'}
+                  dimmed={picked === 'chaos'}
+                  onClick={() => void pick('healthy')}
+                />
 
-              <p className="mt-3 font-display text-2xl leading-snug tracking-tight">
-                {activeNudge.text}
-              </p>
+                <div className="flex items-center gap-3" aria-hidden>
+                  <span className="h-px flex-1 bg-white/10" />
+                  <span className="font-display text-xs tracking-widest text-white/30">
+                    OR
+                  </span>
+                  <span className="h-px flex-1 bg-white/10" />
+                </div>
+
+                <ChoiceCard
+                  label="The unhinged one"
+                  emoji="🌀"
+                  text={activeNudge.chaos.text}
+                  accent="ring-fuchsia-400/70"
+                  glow="bg-fuchsia-500/10"
+                  chosen={picked === 'chaos'}
+                  dimmed={picked === 'healthy'}
+                  onClick={() => void pick('chaos')}
+                />
+              </div>
 
               <button
                 onClick={dismissNudge}
-                autoFocus
-                className={`tap mt-7 w-full rounded-2xl ${persona.theme.accent} ${persona.theme.onAccent} px-5 text-base font-bold shadow-lg shadow-black/30 transition active:scale-[0.97]`}
+                disabled={!!picked}
+                className="tap mt-3 w-full rounded-2xl text-sm font-semibold text-white/35 transition active:bg-white/5 disabled:opacity-0"
               >
-                {persona.dismissLabel}
+                Neither, leave me alone
               </button>
             </div>
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function ChoiceCard({
+  label,
+  emoji,
+  text,
+  accent,
+  glow,
+  chosen,
+  dimmed,
+  onClick,
+}: {
+  label: string;
+  emoji: string;
+  text: string;
+  accent: string;
+  glow: string;
+  chosen: boolean;
+  dimmed: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <motion.button
+      onClick={onClick}
+      animate={{ scale: chosen ? 1.02 : 1, opacity: dimmed ? 0.35 : 1 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+      className={`w-full rounded-3xl border border-white/10 ${glow} px-4 py-4 text-left transition active:scale-[0.98] ${
+        chosen ? `ring-2 ${accent}` : ''
+      }`}
+    >
+      <span className="flex items-center gap-2">
+        <span className="text-base" aria-hidden>{emoji}</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/45">
+          {label}
+        </span>
+        {chosen && (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="ml-auto text-sm font-bold text-emerald-300"
+          >
+            ✓ picked
+          </motion.span>
+        )}
+      </span>
+      <span className="mt-2 block font-display text-[17px] leading-snug">
+        {text}
+      </span>
+    </motion.button>
   );
 }
