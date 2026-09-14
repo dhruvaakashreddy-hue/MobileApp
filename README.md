@@ -59,7 +59,10 @@ no ambient `Date.now()`. That's deliberate: overnight active-hour windows and
 "push this nudge to tomorrow morning" are the fiddly parts, and they're much
 easier to reason about (and test) in isolation.
 
-- A nudge every **30 minutes**, fixed.
+- A nudge every **30 minutes** by default, adjustable from **10 minutes** to
+  **3 hours** in Settings. The stored value is clamped on read as well as on
+  write, so an out-of-range or corrupt value can never produce a nonsense
+  schedule.
 - If one would land outside active hours, it's pushed to the next window open.
 - Windows that wrap past midnight (22:00 → 06:00) work correctly.
 - Disabled categories are excluded from the pool.

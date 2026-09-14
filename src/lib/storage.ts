@@ -2,6 +2,7 @@ import { Preferences } from '@capacitor/preferences';
 import type { NudgeCategory } from '../types';
 import { ALL_CATEGORIES, DEFAULT_PERSONA_ID } from '../data/personas';
 import type { NudgeQueue } from './nudgePool';
+import { DEFAULT_INTERVAL_MINUTES } from './scheduling';
 
 /**
  * Everything the app knows lives here, in Capacitor Preferences (UserDefaults
@@ -12,6 +13,8 @@ export interface Settings {
   onboarded: boolean;
   enabled: boolean;
   personaId: string;
+  /** Gap between nudges, in minutes. See scheduling.ts for the allowed range. */
+  intervalMinutes: number;
   /** Start of the active window, in minutes past midnight. */
   activeStart: number;
   /** End of the active window, in minutes past midnight. May wrap past midnight. */
@@ -44,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   onboarded: false,
   enabled: false,
   personaId: DEFAULT_PERSONA_ID,
+  intervalMinutes: DEFAULT_INTERVAL_MINUTES,
   activeStart: 9 * 60,
   activeEnd: 21 * 60,
   categories: [...ALL_CATEGORIES],

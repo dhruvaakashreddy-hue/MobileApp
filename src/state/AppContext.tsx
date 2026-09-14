@@ -22,6 +22,7 @@ import {
   type Settings,
   type Stats,
 } from '../lib/storage';
+import { clampInterval } from '../lib/scheduling';
 import {
   checkPermission,
   isNative,
@@ -269,9 +270,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateSettings = useCallback(
     async (patch: Partial<Settings>) => {
       const next = { ...settingsRef.current, ...patch };
+      if (patch.intervalMinutes !== undefined) {
+        next.intervalMinutes = clampInterval(patch.intervalMinutes);
+      }
       // Any of these change what gets scheduled, so the queue is rebuilt.
       const rescheduleKeys: (keyof Settings)[] = [
         'enabled',
+        'intervalMinutes',
         'personaId',
         'activeStart',
         'activeEnd',

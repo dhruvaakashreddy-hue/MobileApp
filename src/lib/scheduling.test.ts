@@ -1,8 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  NUDGE_INTERVAL_MINUTES,
+  DEFAULT_INTERVAL_MINUTES,
+  MAX_INTERVAL_MINUTES,
+  MIN_INTERVAL_MINUTES,
+  clampInterval,
   computeNextFireTime,
+  formatInterval,
   formatCountdown,
   formatTimeLabel,
   isWithinActiveHours,
@@ -20,8 +24,16 @@ import {
 
 const at = (h: number, m = 0) => new Date(2026, 0, 15, h, m, 0, 0);
 
-const WORK_DAY = { activeStart: 9 * 60, activeEnd: 21 * 60 };
-const OVERNIGHT = { activeStart: 22 * 60, activeEnd: 6 * 60 };
+const WORK_DAY = {
+  activeStart: 9 * 60,
+  activeEnd: 21 * 60,
+  intervalMinutes: DEFAULT_INTERVAL_MINUTES,
+};
+const OVERNIGHT = {
+  activeStart: 22 * 60,
+  activeEnd: 6 * 60,
+  intervalMinutes: DEFAULT_INTERVAL_MINUTES,
+};
 
 describe('isWithinActiveHours', () => {
   it('handles a normal daytime window', () => {
@@ -71,7 +83,29 @@ describe('computeNextFireTime', () => {
   it('is exactly one interval later when that lands inside the window', () => {
     const now = at(10);
     const next = computeNextFireTime(now, WINDOW);
-    assert.equal((next.getTime() - now.getTime()) / 60_000, NUDGE_INTERVAL_MINUTES);
+    assert.equal((next.getTime() - now.getTime()) / 60_000, DEFAULT_INTERVAL_MINUTES);
+  });
+
+  it('honours whatever interval the user picked', () => {
+    for (const minutes of [10, 15, 30, 45, 60, 90, 180]) {
+      const now = at(9, 5);
+      const next = computeNextFireTime(now, { ...WINDOW, intervalMinutes: minutes });
+      assert.equal(
+        (next.getTime() - now.getTime()) / 60_000,
+        minutes,
+        `interval ${minutes} should be respected`,
+      );
+    }
+  });
+
+  it('clamps an out-of-range stored interval instead of misbehaving', () => {
+    const now = at(10);
+    const tooShort = computeNextFireTime(now, { ...WINDOW, intervalMinutes: 1 });
+    assert.equal((tooShort.getTime() - now.getTime()) / 60_000, MIN_INTERVAL_MINUTES);
+
+    const tooLong = computeNextFireTime(at(9), { ...WINDOW, intervalMinutes: 9999 });
+    // 9am + 180min = noon, still inside the window.
+    assert.equal((tooLong.getTime() - at(9).getTime()) / 60_000, MAX_INTERVAL_MINUTES);
   });
 
   it('is deterministic — the same input gives the same time', () => {
@@ -129,5 +163,47 @@ describe('formatting', () => {
     for (const mins of [0, 45, 9 * 60, 13 * 60 + 37, 23 * 60 + 59]) {
       assert.equal(timeStringToMinutes(minutesToTimeString(mins)), mins);
     }
+  });
+});
+
+describe('clampInterval', () => {
+  it('defaults to 30 minutes', () => {
+    assert.equal(DEFAULT_INTERVAL_MINUTES, 30);
+  });
+
+  it('never returns less than the 10-minute floor', () => {
+    for (const v of [0, 1, 9, -50]) {
+      assert.equal(clampInterval(v), MIN_INTERVAL_MINUTES, `${v} should clamp up`);
+    }
+  });
+
+  it('never returns more than the ceiling', () => {
+    assert.equal(clampInterval(10_000), MAX_INTERVAL_MINUTES);
+  });
+
+  it('snaps to the 5-minute step', () => {
+    assert.equal(clampInterval(32), 30);
+    assert.equal(clampInterval(33), 35);
+  });
+
+  it('survives a missing or corrupt stored value', () => {
+    assert.equal(clampInterval(NaN), DEFAULT_INTERVAL_MINUTES);
+    assert.equal(clampInterval(Infinity), DEFAULT_INTERVAL_MINUTES);
+  });
+
+  it('leaves every preset untouched', () => {
+    for (const preset of [10, 15, 30, 45, 60, 90]) {
+      assert.equal(clampInterval(preset), preset);
+    }
+  });
+});
+
+describe('formatInterval', () => {
+  it('reads naturally at each scale', () => {
+    assert.equal(formatInterval(10), '10 min');
+    assert.equal(formatInterval(30), '30 min');
+    assert.equal(formatInterval(60), '1 hr');
+    assert.equal(formatInterval(90), '1 hr 30 min');
+    assert.equal(formatInterval(180), '3 hr');
   });
 });

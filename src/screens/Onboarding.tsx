@@ -98,7 +98,7 @@ export function Onboarding() {
                 <div className="mt-8 flex flex-col gap-2 text-left">
                   {[
                     ['🎭', 'Pick a persona', 'A drill sergeant, your mum, or a menace'],
-                    ['⏱️', 'Every 30 minutes', 'A steady drumbeat, not a surprise'],
+                    ['⏱️', 'Every 30 minutes', 'Change it any time in Settings'],
                     ['🌙', 'Never at 3am', 'You set the hours it may speak'],
                   ].map(([emoji, title, sub]) => (
                     <div

@@ -10,13 +10,27 @@ import type { Settings } from './storage';
 export const MINUTE = 60_000;
 
 /**
- * Fixed cadence: a nudge every 30 minutes inside the active window.
- *
- * This used to be a user-configurable min/max range. One fixed number is less
- * to explain, less to get wrong, and makes "next nudge" an exact time rather
- * than an approximation.
+ * The gap between nudges, in minutes. One number rather than a min/max range:
+ * less to explain, and it makes "next nudge" an exact time rather than an
+ * approximation.
  */
-export const NUDGE_INTERVAL_MINUTES = 30;
+export const DEFAULT_INTERVAL_MINUTES = 30;
+export const MIN_INTERVAL_MINUTES = 10;
+export const MAX_INTERVAL_MINUTES = 180;
+/** Slider granularity, and what the interval is rounded to. */
+export const INTERVAL_STEP_MINUTES = 5;
+
+/**
+ * Keeps a stored interval inside the supported range. Applied on read as well
+ * as on write, so a value from an older build (or a corrupted one) can never
+ * produce a nonsensical schedule.
+ */
+export function clampInterval(minutes: number): number {
+  if (!Number.isFinite(minutes)) return DEFAULT_INTERVAL_MINUTES;
+  const stepped =
+    Math.round(minutes / INTERVAL_STEP_MINUTES) * INTERVAL_STEP_MINUTES;
+  return Math.min(MAX_INTERVAL_MINUTES, Math.max(MIN_INTERVAL_MINUTES, stepped));
+}
 
 /** Formats minutes-past-midnight as `HH:MM` for the native time input. */
 export function minutesToTimeString(mins: number): string {
@@ -81,10 +95,20 @@ export function nextActiveWindowStart(
  */
 export function computeNextFireTime(
   now: Date,
-  settings: Pick<Settings, 'activeStart' | 'activeEnd'>,
+  settings: Pick<Settings, 'activeStart' | 'activeEnd' | 'intervalMinutes'>,
 ): Date {
-  const target = new Date(now.getTime() + NUDGE_INTERVAL_MINUTES * MINUTE);
+  const gap = clampInterval(settings.intervalMinutes);
+  const target = new Date(now.getTime() + gap * MINUTE);
   return nextActiveWindowStart(target, settings.activeStart, settings.activeEnd);
+}
+
+/** `30 min` / `1 hr 30 min` — for labelling the interval itself. */
+export function formatInterval(minutes: number): string {
+  const m = clampInterval(minutes);
+  if (m < 60) return `${m} min`;
+  const hours = Math.floor(m / 60);
+  const mins = m % 60;
+  return mins === 0 ? `${hours} hr` : `${hours} hr ${mins} min`;
 }
 
 /** `30 min` / `2 hr 5 min` / `any moment now`. */

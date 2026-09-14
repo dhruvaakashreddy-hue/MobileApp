@@ -11,7 +11,7 @@ import {
 } from '../data/personas';
 import { formatExpiry, PRICE_LABEL, PRICE_PERIOD } from '../lib/billing';
 import { isNative } from '../lib/notifications';
-import { NUDGE_INTERVAL_MINUTES } from '../lib/scheduling';
+import { IntervalPicker } from '../components/IntervalPicker';
 import { formatE164ForDisplay } from '../lib/auth';
 import { Avatar } from '../components/Avatar';
 
@@ -114,17 +114,11 @@ export function Settings() {
 
       <SectionLabel>How often</SectionLabel>
       <Card className="mb-6">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl" aria-hidden>⏱️</span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold">
-              Every {NUDGE_INTERVAL_MINUTES} minutes
-            </p>
-            <p className="mt-0.5 text-[13px] leading-snug text-white/45">
-              A steady drumbeat while you're inside your active hours.
-            </p>
-          </div>
-        </div>
+        <IntervalPicker
+          value={settings.intervalMinutes}
+          accentHex={persona.theme.hex}
+          onChange={(minutes) => void updateSettings({ intervalMinutes: minutes })}
+        />
       </Card>
 
       <SectionLabel>Active hours</SectionLabel>

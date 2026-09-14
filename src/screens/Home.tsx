@@ -6,8 +6,8 @@ import { useApp } from '../state/AppContext';
 import { Card, Screen } from '../components/ui';
 import { Avatar } from '../components/Avatar';
 import {
-  NUDGE_INTERVAL_MINUTES,
   formatCountdown,
+  formatInterval,
   formatTimeLabel,
 } from '../lib/scheduling';
 
@@ -163,7 +163,7 @@ export function Home() {
         </div>
         {settings.enabled && (
           <p className="mt-3 border-t border-white/10 pt-3 text-[13px] leading-snug text-white/45">
-            Every {NUDGE_INTERVAL_MINUTES} minutes between{' '}
+            Every {formatInterval(settings.intervalMinutes)} between{' '}
             {formatTimeLabel(settings.activeStart)} and{' '}
             {formatTimeLabel(settings.activeEnd)}.
           </p>
@@ -212,8 +212,8 @@ export function Home() {
         className="tap mt-4 mb-6 w-full rounded-2xl border-2 border-dashed border-white/15 px-5 text-sm font-bold text-white/70 transition active:scale-[0.98] disabled:opacity-40"
       >
         {queued
-          ? `✅ Queued — arrives in ${NUDGE_INTERVAL_MINUTES} min`
-          : `🔔 Send me one in ${NUDGE_INTERVAL_MINUTES} min`}
+          ? `✅ Queued — arrives in ${formatInterval(settings.intervalMinutes)}`
+          : `🔔 Send me one in ${formatInterval(settings.intervalMinutes)}`}
       </button>
     </Screen>
   );
