@@ -130,7 +130,9 @@ export function chaosAt(persona: Persona, index: number): RenderedNudge {
   return {
     id: `${persona.id}:chaos:${wrapperIndex}:${action.id}`,
     text: renderNudge(persona, action, wrapperIndex),
-    category: 'random',
+    // Chaos options are never category-filtered — the user's category toggles
+    // only shape the healthy side — so this is just a label for the type.
+    category: 'mood',
   };
 }
 

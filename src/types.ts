@@ -1,10 +1,10 @@
 export type NudgeCategory =
-  | 'posture'
-  | 'hydration'
+  | 'stretch'
   | 'movement'
-  | 'social'
-  | 'random'
-  | 'work';
+  | 'breathe'
+  | 'hydration'
+  | 'eyes'
+  | 'mood';
 
 export interface PersonaTheme {
   /** Tailwind gradient stops for the persona's hero surfaces. */

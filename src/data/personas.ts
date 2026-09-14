@@ -9,40 +9,41 @@ import { renderNudge } from '../lib/nudgePool.ts';
  */
 
 export const CATEGORY_LABELS: Record<NudgeCategory, string> = {
-  posture: 'Posture',
+  stretch: 'Stretching',
+  movement: 'Exercise',
+  breathe: 'Breathing',
   hydration: 'Hydration',
-  movement: 'Movement',
-  social: 'Social',
-  random: 'Random chaos',
-  work: 'Work breaks',
+  eyes: 'Eye rest',
+  mood: 'Mood reset',
 };
 
 export const CATEGORY_EMOJI: Record<NudgeCategory, string> = {
-  posture: '🪑',
+  stretch: '🧘',
+  movement: '🏋️',
+  breathe: '🌬️',
   hydration: '💧',
-  movement: '🏃',
-  social: '💬',
-  random: '🎲',
-  work: '💻',
+  eyes: '👀',
+  mood: '☀️',
 };
 
 export const CATEGORY_BLURBS: Record<NudgeCategory, string> = {
-  posture: 'Sit-up-straight callouts',
-  hydration: 'Reminders to actually drink water',
-  movement: 'Pushups, squats, stretching, walking',
-  social: 'Text a friend, call someone back',
-  random: 'Breathe, blink, unclench your jaw',
-  work: 'Step away from the screen',
+  stretch: 'Shoulders, neck, hips, hamstrings',
+  movement: 'Squats, pushups, planks, stairs',
+  breathe: 'Slow breathing and unclenching',
+  hydration: 'Water, tea, actually finishing it',
+  eyes: 'Screen breaks and refocusing',
+  mood: 'Daylight, cold water, a song',
 };
 
 export const ALL_CATEGORIES: NudgeCategory[] = [
-  'posture',
-  'hydration',
+  'stretch',
   'movement',
-  'social',
-  'random',
-  'work',
+  'breathe',
+  'hydration',
+  'eyes',
+  'mood',
 ];
+
 
 const drillSergeant: Persona = {
   id: 'drill-sergeant',

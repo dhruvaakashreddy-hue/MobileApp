@@ -148,6 +148,18 @@ export function isValidPlannedNudge(v: unknown): v is PlannedNudge {
   );
 }
 
+/**
+ * Drops category ids that no longer exist, and falls back to all of them if
+ * that would leave nothing — an empty selection means no nudges can be built
+ * at all, which would look like the app quietly breaking.
+ */
+function migrateCategories(settings: Settings): Settings {
+  const known = new Set<string>(ALL_CATEGORIES);
+  const kept = (settings.categories ?? []).filter((c) => known.has(c));
+  if (kept.length === settings.categories?.length) return settings;
+  return { ...settings, categories: kept.length > 0 ? kept : [...ALL_CATEGORIES] };
+}
+
 export function isValidQueue(v: unknown): v is NudgeQueue {
   if (!v || typeof v !== 'object') return false;
   const q = v as Record<string, unknown>;
@@ -164,15 +176,16 @@ export function isValidQueue(v: unknown): v is NudgeQueue {
 
 export const store = {
   async getSettings(): Promise<Settings> {
-    const settings = await readJSON<Settings>(KEYS.settings, DEFAULT_SETTINGS);
+    const stored = await readJSON<Settings>(KEYS.settings, DEFAULT_SETTINGS);
+    const settings = migrateCategories(stored);
     const personaId = resolvePersonaId(settings.personaId);
-    if (personaId === settings.personaId) return settings;
+    if (personaId === settings.personaId && settings === stored) return stored;
 
     // Carry a renamed persona across rather than dropping the user back to the
     // default one, and write it back so the dead id does not linger — anything
     // reading Preferences without going through here would still see the old
     // value otherwise.
-    const migrated = { ...settings, personaId };
+    const migrated: Settings = { ...settings, personaId };
     await writeJSON(KEYS.settings, migrated);
     return migrated;
   },
