@@ -1,6 +1,10 @@
 import { Preferences } from '@capacitor/preferences';
 import type { NudgeCategory } from '../types';
-import { ALL_CATEGORIES, DEFAULT_PERSONA_ID } from '../data/personas.ts';
+import {
+  ALL_CATEGORIES,
+  DEFAULT_PERSONA_ID,
+  resolvePersonaId,
+} from '../data/personas.ts';
 import type { NudgeQueue } from './nudgePool.ts';
 import { DEFAULT_INTERVAL_MINUTES } from './scheduling.ts';
 
@@ -159,7 +163,19 @@ export function isValidQueue(v: unknown): v is NudgeQueue {
 }
 
 export const store = {
-  getSettings: () => readJSON<Settings>(KEYS.settings, DEFAULT_SETTINGS),
+  async getSettings(): Promise<Settings> {
+    const settings = await readJSON<Settings>(KEYS.settings, DEFAULT_SETTINGS);
+    const personaId = resolvePersonaId(settings.personaId);
+    if (personaId === settings.personaId) return settings;
+
+    // Carry a renamed persona across rather than dropping the user back to the
+    // default one, and write it back so the dead id does not linger — anything
+    // reading Preferences without going through here would still see the old
+    // value otherwise.
+    const migrated = { ...settings, personaId };
+    await writeJSON(KEYS.settings, migrated);
+    return migrated;
+  },
   setSettings: (s: Settings) => writeJSON(KEYS.settings, s),
 
   getStats: () => readJSON<Stats>(KEYS.stats, DEFAULT_STATS),

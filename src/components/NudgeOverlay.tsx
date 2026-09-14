@@ -161,7 +161,7 @@ export function NudgeOverlay() {
                 </div>
 
                 <ChoiceCard
-                  label="The unhinged one"
+                  label="The mischievous one"
                   emoji="🌀"
                   text={activeNudge.chaos.text}
                   accent="ring-fuchsia-400/70"

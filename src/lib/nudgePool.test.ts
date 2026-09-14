@@ -58,7 +58,7 @@ describe('rendered nudges', () => {
 
   it('shouts for the drill sergeant only', () => {
     const drill = PERSONAS.find((p) => p.id === 'drill-sergeant')!;
-    const bestie = PERSONAS.find((p) => p.id === 'unhinged-bestie')!;
+    const bestie = PERSONAS.find((p) => p.id === 'mischievous-bestie')!;
     const shout = nudgeAt(drill, ALL, 0)!.text;
     assert.equal(shout, shout.toUpperCase());
     const chat = nudgeAt(bestie, ALL, 0)!.text;

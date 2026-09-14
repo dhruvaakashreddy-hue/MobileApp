@@ -182,13 +182,13 @@ const naggingMom: Persona = {
   ],
 };
 
-const unhingedBestie: Persona = {
-  id: 'unhinged-bestie',
-  name: 'Unhinged Bestie',
-  emoji: '💅',
-  description: 'No indoor voice, no impulse control, genuinely wants the best for you.',
+const mischievousBestie: Persona = {
+  id: 'mischievous-bestie',
+  name: 'Mischievous Bestie',
+  emoji: '😼',
+  description: "A terrible influence and your favourite person. Always says do it.",
   isPremium: true,
-  dismissLabel: 'ok bestie',
+  dismissLabel: 'say less',
   sound: 'bestie',
   theme: {
     gradient: 'from-fuchsia-500 via-purple-500 to-indigo-500',
@@ -198,68 +198,82 @@ const unhingedBestie: Persona = {
     hex: '#D946EF',
   },
   wrappers: [
-    'bestie {t} rn. no thoughts.',
-    'not you refusing to {t} 💀',
-    'ok but seriously {t}. I\'ll wait.',
-    '{t} challenge. you have to. rules are rules.',
-    'girl. {t}. immediately.',
-    '{t} or I\'m telling everyone you didn\'t',
-    'the vibes are off. {t}.',
-    '{t} bestie it\'s giving self care',
-    'unserious behaviour. {t}.',
-    'hear me out: {t}. revolutionary.',
-    '{t} and thank me in like 10 mins',
-    'this is your sign to {t} ✨',
-    '{t}!! why are you still sitting there!!',
-    'no bc {t}. I\'m being so normal about this.',
-    '{t}. that\'s the tweet.',
-    'bestie I love you but {t}.',
-    '{t} before I start being annoying about it',
-    'you WILL {t} and you WILL feel better',
-    '{t}. I don\'t make the rules I just enforce them',
-    'quick one: {t}. go.',
-    '{t} bestie, main character energy',
-    'stop scrolling and {t} 🫵',
-    '{t}. it\'s not that deep, just do it',
-    'help. {t}. right now.',
-    '{t} pls I\'m begging (respectfully)',
-    'we are NOT doing this today. {t}.',
-    '{t} and then you can go back to whatever',
-    'new personality unlocked when you {t}',
-    '{t}. this is a bestie intervention.',
-    'don\'t overthink it just {t}',
-    '{t}. it\'s giving \'takes care of themselves\'',
-    'bestie the audacity. {t}.',
-    '{t} !!!! now !!!!',
-    'the people are asking you to {t}',
-    '{t}. small win. free dopamine.',
-    'genuinely though, {t}.',
-    '{t} or we\'re not friends (jk. but {t})',
-    'I\'m not your mum but {t}',
-    '{t}. you\'ll thank me. probably.',
-    'emergency bestie alert: {t}',
-    '{t}. no you can\'t finish the episode first',
-    'be so serious right now and {t}',
-    '{t} bestie. you\'re literally so close.',
-    'two seconds. {t}. done.',
-    '{t}. slay. that\'s it that\'s the nudge.',
-    'ok real talk — {t}.',
-    '{t}. future you is already grateful',
-    'the girls are saying {t}',
-    '{t} and I\'ll stop texting you',
-    '{t}. that\'s my final offer.',
+    '{t}. no one has to know.',
+    'psst — {t}. quickly, before anyone looks.',
+    '{t}, and we\'ll pretend this never happened',
+    'ok hear me out... {t}. deliciously stupid.',
+    '{t}. be a menace about it.',
+    '{t}. I dare you. no — I double dare you.',
+    'nobody\'s watching. {t}.',
+    '{t}. commit the crime. (the crime is self care)',
+    '{t}, then act completely normal.',
+    '{t}. we\'re being little gremlins today.',
+    'sneak off and {t}. you\'ve earned it.',
+    '{t} before someone stops you',
+    '{t}. chaotic? yes. correct? also yes.',
+    'abandon your post for thirty seconds and {t}',
+    '{t}. this is technically allowed.',
+    '{t}, and don\'t explain yourself to anyone',
+    '{t}. make it weird. make it yours.',
+    '{t}, then deny everything.',
+    'the plan: {t}. the vibe: unbothered.',
+    '{t}. rules were more of a suggestion anyway.',
+    '{t}. quietly. mischievously. now.',
+    'go on, {t}. I\'ll cover for you.',
+    '{t}. nobody will ever suspect a thing.',
+    '{t} with your whole chest. no shame.',
+    '{t}. slightly feral, deeply necessary.',
+    '{t}, and giggle about it.',
+    '{t}. this is our little secret.',
+    '{t} like you\'re getting away with something',
+    '{t}. you\'re not in trouble. yet.',
+    'operation {t}. go go go.',
+    '{t}. be the problem, lovingly.',
+    '{t}. do it badly, do it anyway.',
+    '{t}, and blame me if anyone asks',
+    '{t}. I\'m a terrible influence and you love it.',
+    '{t}. immediately. suspiciously fast.',
+    '{t}. you\'ve got gremlin energy today.',
+    '{t}. it\'s not procrastinating if I told you to.',
+    '{t}, and look very pleased with yourself',
+    '{t}. bonus points for being dramatic.',
+    '{t}. sneaky little win — take it.',
+    '{t}, then pretend you were always like this.',
+    '{t}. mischief managed.',
+    'we\'re doing a bit. the bit is: {t}.',
+    '{t}. be unserious. thrive.',
+    '{t}. no witnesses, no evidence.',
+    '{t}, and let chaos sort out the rest',
+    '{t}. you have my full, unhelpful support.',
+    '{t}. tiny rebellion, big feelings.',
+    '{t}, then come back like nothing happened.',
+    '{t}. I\'ll never tell.',
   ],
 };
 
-export const PERSONAS: Persona[] = [drillSergeant, naggingMom, unhingedBestie];
+export const PERSONAS: Persona[] = [drillSergeant, naggingMom, mischievousBestie];
 
 /** Total distinct nudges available per persona. */
 export const NUDGES_PER_PERSONA = TASK_ACTIONS.length * drillSergeant.wrappers.length;
 
 export const DEFAULT_PERSONA_ID = drillSergeant.id;
 
+/**
+ * Ids that have been renamed. Without this, anyone whose stored persona is an
+ * old id silently falls back to the first persona — losing a choice they paid
+ * for, with no sign anything happened.
+ */
+const RENAMED_PERSONA_IDS: Record<string, string> = {
+  'unhinged-bestie': 'mischievous-bestie',
+};
+
+export function resolvePersonaId(id: string): string {
+  return RENAMED_PERSONA_IDS[id] ?? id;
+}
+
 export function getPersona(id: string): Persona {
-  return PERSONAS.find((p) => p.id === id) ?? PERSONAS[0];
+  const resolved = resolvePersonaId(id);
+  return PERSONAS.find((p) => p.id === resolved) ?? PERSONAS[0];
 }
 
 /**
