@@ -5,13 +5,13 @@ import { useApp } from '../state/AppContext';
 import {
   Button, Card, IconButton, Screen, ScreenHeader, SectionLabel, ToggleRow,
 } from '../components/ui';
-import { IntervalPicker } from '../components/IntervalPicker';
 import { ActiveHoursPicker } from '../components/ActiveHoursPicker';
 import {
   ALL_CATEGORIES, CATEGORY_BLURBS, CATEGORY_EMOJI, CATEGORY_LABELS,
 } from '../data/personas';
 import { formatExpiry, PRICE_LABEL, PRICE_PERIOD } from '../lib/billing';
 import { isNative } from '../lib/notifications';
+import { NUDGE_INTERVAL_MINUTES } from '../lib/scheduling';
 import { formatE164ForDisplay } from '../lib/auth';
 import { Avatar } from '../components/Avatar';
 
@@ -112,14 +112,19 @@ export function Settings() {
         </button>
       </Card>
 
-      <SectionLabel>Timing</SectionLabel>
+      <SectionLabel>How often</SectionLabel>
       <Card className="mb-6">
-        <IntervalPicker
-          minMinutes={settings.minMinutes}
-          maxMinutes={settings.maxMinutes}
-          accentHex={persona.theme.hex}
-          onChange={(next) => void updateSettings(next)}
-        />
+        <div className="flex items-center gap-3">
+          <span className="text-2xl" aria-hidden>⏱️</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-semibold">
+              Every {NUDGE_INTERVAL_MINUTES} minutes
+            </p>
+            <p className="mt-0.5 text-[13px] leading-snug text-white/45">
+              A steady drumbeat while you're inside your active hours.
+            </p>
+          </div>
+        </div>
       </Card>
 
       <SectionLabel>Active hours</SectionLabel>

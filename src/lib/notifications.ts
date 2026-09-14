@@ -3,10 +3,8 @@ import type { PluginListenerHandle } from '@capacitor/core';
 import { Capacitor } from '@capacitor/core';
 import type { Persona } from '../types';
 import { getPersona } from '../data/personas';
-import {
-  computeNextFireTime,
-  pickLine,
-} from './scheduling';
+import { computeNextFireTime } from './scheduling';
+import { createQueue, takeFromQueue } from './nudgePool';
 import {
   creditNudge,
   store,
@@ -105,30 +103,39 @@ export async function requestPermission(): Promise<PermissionState> {
  * from the one before it, skipping anything that would land outside the user's
  * active hours.
  */
-export function buildPlan(
+export async function buildPlan(
   now: Date,
   settings: Settings,
   persona: Persona,
-  lastLineId: string | null,
   count = LOOKAHEAD,
-): PlannedNudge[] {
+): Promise<PlannedNudge[]> {
+  const stored = await store.getQueue();
+  let queue = stored ?? createQueue(persona, settings.categories);
+
+  // Draw the whole batch from the no-repeat queue in one go, so the buffer
+  // never contains a duplicate of something else already queued.
+  const { nudges, queue: nextQueue } = takeFromQueue(
+    queue,
+    persona,
+    settings.categories,
+    count,
+  );
+  queue = nextQueue;
+  await store.setQueue(queue);
+
   const plan: PlannedNudge[] = [];
   let cursor = now;
-  let previousLineId = lastLineId;
 
-  for (let i = 0; i < count; i++) {
-    const line = pickLine(persona, settings, previousLineId);
-    if (!line) break; // every category switched off
+  for (let i = 0; i < nudges.length; i++) {
     const fireAt = computeNextFireTime(cursor, settings);
     plan.push({
       notificationId: ID_BASE + i,
       fireAt: fireAt.getTime(),
-      lineId: line.id,
+      lineId: nudges[i].id,
       personaId: persona.id,
-      text: line.text,
+      text: nudges[i].text,
     });
     cursor = fireAt;
-    previousLineId = line.id;
   }
   return plan;
 }
@@ -164,8 +171,7 @@ export async function rescheduleAll(settings: Settings): Promise<PlannedNudge[]>
   if (!settings.enabled) return [];
 
   const persona = getPersona(settings.personaId);
-  const lastLineId = await store.getLastLineId();
-  const plan = buildPlan(new Date(), settings, persona, lastLineId);
+  const plan = await buildPlan(new Date(), settings, persona);
   if (plan.length === 0) return [];
 
   await store.setPlan(plan);

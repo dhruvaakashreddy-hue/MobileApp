@@ -5,18 +5,20 @@ import { ImpactStyle } from '@capacitor/haptics';
 import { useApp } from '../state/AppContext';
 import { Card, Screen } from '../components/ui';
 import { Avatar } from '../components/Avatar';
-import { formatCountdown, formatTimeLabel, pickLine } from '../lib/scheduling';
-import { isNative, sendTestNudge } from '../lib/notifications';
-import { store } from '../lib/storage';
+import {
+  NUDGE_INTERVAL_MINUTES,
+  formatCountdown,
+  formatTimeLabel,
+} from '../lib/scheduling';
 
 export function Home() {
   const {
     settings, stats, persona, nextFireAt, permission, session,
-    setEnabled, buzz, showNudge,
+    setEnabled, buzz, requeueNext,
   } = useApp();
   const navigate = useNavigate();
   const [now, setNow] = useState(Date.now());
-  const [testSent, setTestSent] = useState(false);
+  const [queued, setQueued] = useState(false);
 
   // A minute is plenty — the countdown is deliberately approximate.
   useEffect(() => {
@@ -24,25 +26,23 @@ export function Home() {
     return () => clearInterval(t);
   }, []);
 
-  const blocked = isNative() && permission === 'denied';
+  const blocked = permission === 'denied';
 
   const handleToggle = async () => {
     buzz(ImpactStyle.Medium);
     await setEnabled(!settings.enabled);
   };
 
-  const handlePreview = async () => {
-    const line = pickLine(persona, settings, await store.getLastLineId());
-    if (!line) return;
+  /**
+   * Queues the next nudge one interval out, rather than firing instantly.
+   * A nudge that arrives the moment you ask for it isn't a nudge — it's a
+   * button press. This resets the countdown so the next one lands on time.
+   */
+  const handleQueueNext = async () => {
     buzz();
-    if (isNative()) {
-      await sendTestNudge(settings, line.text);
-      setTestSent(true);
-      setTimeout(() => setTestSent(false), 4000);
-    } else {
-      // On the web preview there is no OS notification, so show the card directly.
-      showNudge({ lineId: line.id, personaId: persona.id, text: line.text });
-    }
+    await requeueNext();
+    setQueued(true);
+    setTimeout(() => setQueued(false), 4000);
   };
 
   return (
@@ -163,8 +163,8 @@ export function Home() {
         </div>
         {settings.enabled && (
           <p className="mt-3 border-t border-white/10 pt-3 text-[13px] leading-snug text-white/45">
-            Every {Math.round(settings.minMinutes)}–{Math.round(settings.maxMinutes)} min
-            between {formatTimeLabel(settings.activeStart)} and{' '}
+            Every {NUDGE_INTERVAL_MINUTES} minutes between{' '}
+            {formatTimeLabel(settings.activeStart)} and{' '}
             {formatTimeLabel(settings.activeEnd)}.
           </p>
         )}
@@ -207,10 +207,13 @@ export function Home() {
       </button>
 
       <button
-        onClick={handlePreview}
-        className="tap mt-4 mb-6 w-full rounded-2xl border-2 border-dashed border-white/15 px-5 text-sm font-bold text-white/70 transition active:scale-[0.98]"
+        onClick={handleQueueNext}
+        disabled={!settings.enabled}
+        className="tap mt-4 mb-6 w-full rounded-2xl border-2 border-dashed border-white/15 px-5 text-sm font-bold text-white/70 transition active:scale-[0.98] disabled:opacity-40"
       >
-        {testSent ? '👀 Watch your notification shade…' : '🔔 Send me one right now'}
+        {queued
+          ? `✅ Queued — arrives in ${NUDGE_INTERVAL_MINUTES} min`
+          : `🔔 Send me one in ${NUDGE_INTERVAL_MINUTES} min`}
       </button>
     </Screen>
   );

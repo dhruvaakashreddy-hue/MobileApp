@@ -71,6 +71,7 @@ interface AppState {
   sendPhoneCode: (phoneE164: string) => Promise<PhoneChallenge>;
   signInWithPhone: (challenge: PhoneChallenge, code: string) => Promise<void>;
   saveProfile: (patch: ProfilePatch) => Promise<void>;
+  requeueNext: () => Promise<void>;
   profileComplete: boolean;
   continueAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -191,6 +192,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => dispose?.();
   }, [applyPremium]);
 
+  /**
+   * Delivers nudges that come due while the app is open.
+   *
+   * The OS notification only covers a backgrounded app, and on the web there is
+   * no OS notification at all — so without this the countdown reaches zero and
+   * nothing happens. Runs on a short tick, shows the card for anything now due,
+   * and credits it so the stats and the OS agree.
+   */
+  useEffect(() => {
+    if (!ready) return;
+
+    let cancelled = false;
+
+    const check = async () => {
+      if (cancelled || !settingsRef.current.enabled) return;
+
+      const [plan, creditedThrough] = await Promise.all([
+        store.getPlan(),
+        store.getCreditedThrough(),
+      ]);
+      const now = Date.now();
+      const due = plan
+        .filter((p) => p.fireAt <= now && p.fireAt > creditedThrough)
+        .sort((a, b) => a.fireAt - b.fireAt);
+
+      if (due.length === 0) return;
+
+      // Show the most recent one; older misses still get counted below.
+      const latest = due[due.length - 1];
+      if (!cancelled) {
+        setActiveNudge({
+          lineId: latest.lineId,
+          personaId: latest.personaId,
+          text: latest.text,
+        });
+      }
+      await syncFromSystem();
+    };
+
+    void check();
+    const timer = setInterval(() => void check(), 15_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [ready, syncFromSystem]);
+
   // Coming back to the foreground is when stats and the buffer get refreshed.
   useEffect(() => {
     if (!isNative()) return;
@@ -225,8 +273,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const rescheduleKeys: (keyof Settings)[] = [
         'enabled',
         'personaId',
-        'minMinutes',
-        'maxMinutes',
         'activeStart',
         'activeEnd',
         'categories',
@@ -333,6 +379,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await persistSession(guestSession());
   }, [persistSession]);
 
+  /** Restarts the countdown, so the next nudge is a full interval away. */
+  const requeueNext = useCallback(async () => {
+    const plan = await rescheduleAll(settingsRef.current);
+    setNextFireAt(plan[0]?.fireAt ?? null);
+  }, []);
+
   const saveProfile = useCallback(
     async (patch: ProfilePatch) => {
       setSession((current) => {
@@ -369,6 +421,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       sendPhoneCode,
       signInWithPhone,
       saveProfile,
+      requeueNext,
       profileComplete: session ? isProfileComplete(session.user) : false,
       continueAsGuest,
       signOut,
@@ -388,6 +441,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       ready, session, settings, stats, premium, premiumActive, permission,
       nextFireAt, activeNudge, sendPhoneCode, signInWithPhone, saveProfile,
+      requeueNext,
       continueAsGuest, signOut, updateSettings, setEnabled, selectPersona,
       toggleCategory, askPermission, completeOnboarding, buyPremium, restore,
       buzz, isPersonaLocked,

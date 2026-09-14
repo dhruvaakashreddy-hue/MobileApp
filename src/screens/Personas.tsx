@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { PERSONAS, previewLine } from '../data/personas';
+import { NUDGES_PER_PERSONA, PERSONAS, previewLine } from '../data/personas';
 import { useApp } from '../state/AppContext';
 import { IconButton, LockBadge, Screen, ScreenHeader } from '../components/ui';
 import type { Persona } from '../types';
@@ -90,8 +90,8 @@ export function Personas() {
                     </p>
                     <p className="mt-2 text-[11px] font-bold uppercase tracking-wider text-white/35">
                       {locked
-                        ? 'Unlock to hear the other 29'
-                        : `${persona.lines.length} lines in the rotation`}
+                        ? 'Unlock to hear the other 4,999'
+                        : `${NUDGES_PER_PERSONA.toLocaleString()} nudges, never repeated`}
                     </p>
                   </blockquote>
                 </div>

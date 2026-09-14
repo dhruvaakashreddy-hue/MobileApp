@@ -4,12 +4,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { PERSONAS, previewLine } from '../data/personas';
 import { useApp } from '../state/AppContext';
 import { Button, LockBadge, Screen } from '../components/ui';
-import { IntervalPicker } from '../components/IntervalPicker';
 import { ActiveHoursPicker } from '../components/ActiveHoursPicker';
 import { isNative } from '../lib/notifications';
 import type { Persona } from '../types';
 
-const STEPS = ['welcome', 'persona', 'timing', 'hours', 'permission'] as const;
+const STEPS = ['welcome', 'persona', 'hours', 'permission'] as const;
 type Step = (typeof STEPS)[number];
 
 export function Onboarding() {
@@ -99,7 +98,7 @@ export function Onboarding() {
                 <div className="mt-8 flex flex-col gap-2 text-left">
                   {[
                     ['🎭', 'Pick a persona', 'A drill sergeant, your mum, or a menace'],
-                    ['🎲', 'Random timing', 'Inside a range you choose'],
+                    ['⏱️', 'Every 30 minutes', 'A steady drumbeat, not a surprise'],
                     ['🌙', 'Never at 3am', 'You set the hours it may speak'],
                   ].map(([emoji, title, sub]) => (
                     <div
@@ -170,21 +169,6 @@ export function Onboarding() {
                     );
                   })}
                 </div>
-              </div>
-            )}
-
-            {step === 'timing' && (
-              <div>
-                <StepTitle
-                  title="How often?"
-                  sub="Nudge picks a random moment inside this range each time."
-                />
-                <IntervalPicker
-                  minMinutes={settings.minMinutes}
-                  maxMinutes={settings.maxMinutes}
-                  accentHex={persona.theme.hex}
-                  onChange={(next) => void updateSettings(next)}
-                />
               </div>
             )}
 

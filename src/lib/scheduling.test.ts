@@ -1,16 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  NUDGE_INTERVAL_MINUTES,
   computeNextFireTime,
   formatCountdown,
   formatTimeLabel,
   isWithinActiveHours,
   minutesToTimeString,
   nextActiveWindowStart,
-  pickLine,
   timeStringToMinutes,
 } from './scheduling.ts';
-import type { Persona } from '../types.ts';
 
 /**
  * Run with `npm test`.
@@ -67,94 +66,55 @@ describe('nextActiveWindowStart', () => {
 });
 
 describe('computeNextFireTime', () => {
-  const settings = { minMinutes: 15, maxMinutes: 120, ...WORK_DAY };
+  const WINDOW = WORK_DAY;
+
+  it('is exactly one interval later when that lands inside the window', () => {
+    const now = at(10);
+    const next = computeNextFireTime(now, WINDOW);
+    assert.equal((next.getTime() - now.getTime()) / 60_000, NUDGE_INTERVAL_MINUTES);
+  });
+
+  it('is deterministic — the same input gives the same time', () => {
+    const now = at(10, 17);
+    const a = computeNextFireTime(now, WINDOW).getTime();
+    const b = computeNextFireTime(now, WINDOW).getTime();
+    assert.equal(a, b);
+  });
 
   it('always lands inside the active window and in the future', () => {
-    for (let i = 0; i < 2000; i++) {
-      const now = at(8 + (i % 14), i % 60);
-      const next = computeNextFireTime(now, settings);
-      assert.ok(next.getTime() > now.getTime(), 'must be in the future');
-      assert.ok(
-        isWithinActiveHours(next, settings.activeStart, settings.activeEnd),
-        `landed outside active hours: ${next.toString()}`,
-      );
-    }
-  });
-
-  it('respects the min/max range when no push-forward is needed', () => {
-    // From 10:00 every possible draw lands before 21:00, so the raw gap stands.
-    let min = Infinity;
-    let max = 0;
-    for (let i = 0; i < 2000; i++) {
-      const now = at(10);
-      const gap = (computeNextFireTime(now, settings).getTime() - now.getTime()) / 60_000;
-      min = Math.min(min, gap);
-      max = Math.max(max, gap);
-    }
-    assert.equal(min, 15);
-    assert.equal(max, 120);
-  });
-
-  it('pushes an out-of-hours draw to the next window opening', () => {
-    // 20:30 with a 15-120min range: most draws overflow past 21:00.
-    const now = at(20, 30);
-    let pushed = 0;
-    for (let i = 0; i < 500; i++) {
-      const t = computeNextFireTime(now, settings);
-      if (t.getDate() === 16) {
-        assert.equal(t.getHours(), 9);
-        assert.equal(t.getMinutes(), 0);
-        pushed++;
+    for (let h = 0; h < 24; h++) {
+      for (const m of [0, 29, 45, 59]) {
+        const now = at(h, m);
+        const next = computeNextFireTime(now, WINDOW);
+        assert.ok(next.getTime() > now.getTime(), `${h}:${m} must be in the future`);
+        assert.ok(
+          isWithinActiveHours(next, WINDOW.activeStart, WINDOW.activeEnd),
+          `${h}:${m} landed outside active hours`,
+        );
       }
     }
-    assert.ok(pushed > 0, 'expected at least some draws to be pushed to tomorrow');
+  });
+
+  it('pushes a nudge that would overflow the window to the next opening', () => {
+    const next = computeNextFireTime(at(20, 45), WINDOW);
+    assert.equal(next.getDate(), 16);
+    assert.equal(next.getHours(), 9);
+    assert.equal(next.getMinutes(), 0);
   });
 
   it('works for an overnight active window', () => {
-    const overnight = { minMinutes: 30, maxMinutes: 90, ...OVERNIGHT };
-    for (let i = 0; i < 1000; i++) {
-      const next = computeNextFireTime(at(i % 24, i % 60), overnight);
+    for (let h = 0; h < 24; h++) {
+      const next = computeNextFireTime(at(h), OVERNIGHT);
       assert.ok(isWithinActiveHours(next, OVERNIGHT.activeStart, OVERNIGHT.activeEnd));
     }
   });
 });
 
-describe('pickLine', () => {
-  const persona = {
-    lines: [
-      { id: 'a', text: 'a', category: 'posture' },
-      { id: 'b', text: 'b', category: 'posture' },
-      { id: 'c', text: 'c', category: 'work' },
-    ],
-  } as Persona;
-
-  it('only picks from enabled categories', () => {
-    for (let i = 0; i < 50; i++) {
-      assert.equal(pickLine(persona, { categories: ['work'] }, null)?.id, 'c');
-    }
-  });
-
-  it('returns null when every category is switched off', () => {
-    assert.equal(pickLine(persona, { categories: ['social'] }, null), null);
-  });
-
-  it('never repeats the previous line', () => {
-    for (let i = 0; i < 200; i++) {
-      assert.notEqual(pickLine(persona, { categories: ['posture'] }, 'a')?.id, 'a');
-    }
-  });
-
-  it('may repeat when only one line is available', () => {
-    const solo = { lines: [{ id: 'solo', text: 's', category: 'work' }] } as Persona;
-    assert.equal(pickLine(solo, { categories: ['work'] }, 'solo')?.id, 'solo');
-  });
-});
-
 describe('formatting', () => {
   it('formats countdowns', () => {
-    assert.equal(formatCountdown(42 * 60_000), '~42 min');
-    assert.equal(formatCountdown(125 * 60_000), '~2 hr 5 min');
-    assert.equal(formatCountdown(120 * 60_000), '~2 hr');
+    assert.equal(formatCountdown(30 * 60_000), '30 min');
+    assert.equal(formatCountdown(125 * 60_000), '2 hr 5 min');
+    assert.equal(formatCountdown(120 * 60_000), '2 hr');
     assert.equal(formatCountdown(0), 'any moment now');
     assert.equal(formatCountdown(-5000), 'any moment now');
   });

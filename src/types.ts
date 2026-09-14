@@ -6,12 +6,6 @@ export type NudgeCategory =
   | 'random'
   | 'work';
 
-export interface NudgeLine {
-  id: string;
-  text: string;
-  category: NudgeCategory;
-}
-
 export interface PersonaTheme {
   /** Tailwind gradient stops for the persona's hero surfaces. */
   gradient: string;
@@ -36,5 +30,10 @@ export interface Persona {
   /** Bundled notification sound filename (without extension on iOS). */
   sound: string;
   theme: PersonaTheme;
-  lines: NudgeLine[];
+  /**
+   * In-character phrasings with a `{t}` slot for the task. Combined with the
+   * shared task list this is what produces thousands of distinct nudges — see
+   * src/lib/nudgePool.ts.
+   */
+  wrappers: string[];
 }

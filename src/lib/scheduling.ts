@@ -1,4 +1,3 @@
-import type { NudgeLine, Persona } from '../types';
 import type { Settings } from './storage';
 
 /**
@@ -9,6 +8,15 @@ import type { Settings } from './storage';
  */
 
 export const MINUTE = 60_000;
+
+/**
+ * Fixed cadence: a nudge every 30 minutes inside the active window.
+ *
+ * This used to be a user-configurable min/max range. One fixed number is less
+ * to explain, less to get wrong, and makes "next nudge" an exact time rather
+ * than an approximation.
+ */
+export const NUDGE_INTERVAL_MINUTES = 30;
 
 /** Formats minutes-past-midnight as `HH:MM` for the native time input. */
 export function minutesToTimeString(mins: number): string {
@@ -67,57 +75,25 @@ export function nextActiveWindowStart(
   return candidate;
 }
 
-export function randomInt(min: number, max: number, rng = Math.random): number {
-  const lo = Math.min(min, max);
-  const hi = Math.max(min, max);
-  return lo + Math.floor(rng() * (hi - lo + 1));
-}
-
 /**
- * Picks when the next nudge should fire: a random gap inside the user's
- * min/max range, pushed forward to the next active window if it would have
- * landed while they're asleep.
+ * When the next nudge should fire: exactly one interval from now, pushed
+ * forward to the next active window if that would land while they're asleep.
  */
 export function computeNextFireTime(
   now: Date,
-  settings: Pick<Settings, 'minMinutes' | 'maxMinutes' | 'activeStart' | 'activeEnd'>,
-  rng = Math.random,
+  settings: Pick<Settings, 'activeStart' | 'activeEnd'>,
 ): Date {
-  const gap = randomInt(settings.minMinutes, settings.maxMinutes, rng);
-  const target = new Date(now.getTime() + gap * MINUTE);
+  const target = new Date(now.getTime() + NUDGE_INTERVAL_MINUTES * MINUTE);
   return nextActiveWindowStart(target, settings.activeStart, settings.activeEnd);
 }
 
-/**
- * Chooses the next line: only from categories the user left switched on, and
- * never the same line twice in a row (unless the pool has just one line left).
- */
-export function pickLine(
-  persona: Persona,
-  settings: Pick<Settings, 'categories'>,
-  lastLineId: string | null,
-  rng = Math.random,
-): NudgeLine | null {
-  const allowed = persona.lines.filter((l) =>
-    settings.categories.includes(l.category),
-  );
-  if (allowed.length === 0) return null;
-
-  const pool =
-    allowed.length > 1
-      ? allowed.filter((l) => l.id !== lastLineId)
-      : allowed;
-
-  return pool[Math.floor(rng() * pool.length)] ?? pool[0];
-}
-
-/** `~42 min` / `~2 hr 5 min` / `any moment now`. */
+/** `30 min` / `2 hr 5 min` / `any moment now`. */
 export function formatCountdown(msRemaining: number): string {
   if (msRemaining <= 0) return 'any moment now';
   const totalMinutes = Math.round(msRemaining / MINUTE);
   if (totalMinutes < 1) return 'less than a minute';
-  if (totalMinutes < 60) return `~${totalMinutes} min`;
+  if (totalMinutes < 60) return `${totalMinutes} min`;
   const hours = Math.floor(totalMinutes / 60);
   const mins = totalMinutes % 60;
-  return mins === 0 ? `~${hours} hr` : `~${hours} hr ${mins} min`;
+  return mins === 0 ? `${hours} hr` : `${hours} hr ${mins} min`;
 }

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PERSONAS } from '../data/personas';
+import { TASK_ACTIONS } from '../data/tasks';
+import { renderNudge } from '../lib/nudgePool';
 import { useApp } from '../state/AppContext';
 import { Button, IconButton, Screen } from '../components/ui';
 import { PRICE_LABEL, PRICE_PERIOD, activeProvider } from '../lib/billing';
@@ -83,12 +85,12 @@ export function Paywall() {
                   <h2 className="font-display text-lg">{p.name}</h2>
                 </div>
                 <ul className="mt-3 flex flex-col gap-2">
-                  {p.lines.slice(0, 2).map((l) => (
+                  {[0, 1].map((i) => (
                     <li
-                      key={l.id}
+                      key={i}
                       className="rounded-xl bg-white/5 px-3 py-2 text-[14px] leading-snug"
                     >
-                      “{l.text}”
+                      “{renderNudge(p, TASK_ACTIONS[i * 17], i)}”
                     </li>
                   ))}
                 </ul>
@@ -99,7 +101,7 @@ export function Paywall() {
 
         <ul className="mt-6 flex flex-col gap-2.5">
           {[
-            'All 3 personas — 90 lines in rotation',
+            'All 3 personas — 5,000 nudges each, no repeats',
             'Every nudge category unlocked',
             'Custom persona sounds',
             'New line packs as they land, included',

@@ -1,6 +1,7 @@
 import { Preferences } from '@capacitor/preferences';
 import type { NudgeCategory } from '../types';
 import { ALL_CATEGORIES, DEFAULT_PERSONA_ID } from '../data/personas';
+import type { NudgeQueue } from './nudgePool';
 
 /**
  * Everything the app knows lives here, in Capacitor Preferences (UserDefaults
@@ -11,10 +12,6 @@ export interface Settings {
   onboarded: boolean;
   enabled: boolean;
   personaId: string;
-  /** Minimum gap between nudges, in minutes. */
-  minMinutes: number;
-  /** Maximum gap between nudges, in minutes. */
-  maxMinutes: number;
   /** Start of the active window, in minutes past midnight. */
   activeStart: number;
   /** End of the active window, in minutes past midnight. May wrap past midnight. */
@@ -47,8 +44,6 @@ export const DEFAULT_SETTINGS: Settings = {
   onboarded: false,
   enabled: false,
   personaId: DEFAULT_PERSONA_ID,
-  minMinutes: 45,
-  maxMinutes: 120,
   activeStart: 9 * 60,
   activeEnd: 21 * 60,
   categories: [...ALL_CATEGORIES],
@@ -78,6 +73,7 @@ const KEYS = {
   nextFireAt: 'nudge.nextFireAt',
   plan: 'nudge.plan',
   creditedThrough: 'nudge.creditedThrough',
+  queue: 'nudge.queue',
 } as const;
 
 /** One scheduled nudge, mirrored locally so stats survive the app being killed. */
@@ -142,6 +138,16 @@ export const store = {
   },
   setPlan: (plan: PlannedNudge[]) => writeJSON(KEYS.plan, plan),
   clearPlan: () => Preferences.remove({ key: KEYS.plan }),
+
+  async getQueue(): Promise<NudgeQueue | null> {
+    try {
+      const { value } = await Preferences.get({ key: KEYS.queue });
+      return value ? (JSON.parse(value) as NudgeQueue) : null;
+    } catch {
+      return null;
+    }
+  },
+  setQueue: (q: NudgeQueue) => writeJSON(KEYS.queue, q),
 
   async getCreditedThrough(): Promise<number> {
     const { value } = await Preferences.get({ key: KEYS.creditedThrough });
