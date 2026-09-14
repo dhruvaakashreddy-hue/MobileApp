@@ -50,7 +50,6 @@ const drillSergeant: Persona = {
   name: 'Drill Sergeant',
   emoji: '🫡',
   description: 'Volume: maximum. Sympathy: none. Results: undeniable.',
-  isPremium: false,
   dismissLabel: 'SIR YES SIR',
   sound: 'drill_sergeant',
   theme: {
@@ -119,7 +118,6 @@ const naggingMom: Persona = {
   name: 'Nagging Mom',
   emoji: '🧶',
   description: "Not angry. Just asking. For the fourth time today.",
-  isPremium: true,
   dismissLabel: 'fine!! ok!!',
   sound: 'mom',
   theme: {
@@ -188,7 +186,6 @@ const mischievousBestie: Persona = {
   name: 'Mischievous Bestie',
   emoji: '😼',
   description: "A terrible influence and your favourite person. Always says do it.",
-  isPremium: true,
   dismissLabel: 'say less',
   sound: 'bestie',
   theme: {

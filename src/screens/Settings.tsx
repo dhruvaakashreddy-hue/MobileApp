@@ -28,7 +28,9 @@ export function Settings() {
     setRestoreMsg('Checking…');
     const ok = await restore();
     setRestoreMsg(
-      ok ? 'Premium restored — all personas unlocked.' : 'No active subscription found on this device.',
+      ok
+        ? 'Subscription restored.'
+        : 'No active subscription found for this account.',
     );
   };
 
@@ -81,8 +83,7 @@ export function Settings() {
             <span className="block truncate text-[13px] text-white/45">
               {session?.user.phoneNumber
                 ? formatE164ForDisplay(session.user.phoneNumber)
-                : session?.user.email ??
-                  'No account — everything stays on this phone'}
+                : (session?.user.email ?? '')}
             </span>
             {session?.user.email && session.user.phoneNumber && (
               <span className="block truncate text-[13px] text-white/35">
@@ -108,7 +109,7 @@ export function Settings() {
           }}
           className="tap mt-3 w-full rounded-2xl border border-white/10 px-4 text-sm font-semibold text-white/60 transition active:bg-white/5"
         >
-          {session?.user.method === 'guest' ? 'Sign in to an account' : 'Sign out'}
+          Sign out
         </button>
       </Card>
 
@@ -183,30 +184,36 @@ export function Settings() {
 
       <SectionLabel>Subscription</SectionLabel>
       <Card className="mb-6">
-        {premiumActive ? (
-          <div>
-            <p className="font-display text-xl">✨ Premium active</p>
-            <p className="mt-1 text-[13px] text-white/50">
-              All personas unlocked
-              {formatExpiry(premium) ? ` · renews ${formatExpiry(premium)}` : ''}.
+        <div className="flex items-start gap-3">
+          <span className="text-2xl" aria-hidden>
+            {premiumActive ? '✅' : '⚠️'}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-semibold">
+              {premiumActive ? 'Active' : 'Not active'}
+            </p>
+            <p className="mt-0.5 text-[13px] leading-snug text-white/45">
+              {premiumActive
+                ? formatExpiry(premium)
+                  ? `${PRICE_LABEL}/${PRICE_PERIOD} · renews ${formatExpiry(premium)}`
+                  : `${PRICE_LABEL}/${PRICE_PERIOD}`
+                : `Nudge is ${PRICE_LABEL} a ${PRICE_PERIOD}. Nudges are paused until it is active.`}
             </p>
           </div>
-        ) : (
-          <div>
-            <p className="font-display text-xl">Unlock all personas</p>
-            <p className="mt-1 mb-4 text-[13px] text-white/50">
-              {PRICE_LABEL}/{PRICE_PERIOD} — every persona, every category.
-            </p>
-            <Button
-              full
-              accent={persona.theme.accent}
-              onAccent={persona.theme.onAccent}
-              onClick={() => navigate('/paywall')}
-            >
-              See what's inside
-            </Button>
-          </div>
+        </div>
+
+        {!premiumActive && (
+          <Button
+            full
+            className="mt-4"
+            accent={persona.theme.accent}
+            onAccent={persona.theme.onAccent}
+            onClick={() => navigate('/paywall')}
+          >
+            Subscribe
+          </Button>
         )}
+
         <button
           onClick={onRestore}
           className="tap mt-2 w-full rounded-2xl px-4 text-sm font-semibold text-white/60 transition active:bg-white/5"
@@ -218,6 +225,13 @@ export function Settings() {
             {restoreMsg}
           </p>
         )}
+
+        {/* Cancelling happens wherever the mandate lives, not in the app —
+            saying so avoids a support ticket asking where the button is. */}
+        <p className="mt-3 border-t border-white/10 pt-3 text-[12px] leading-snug text-white/35">
+          Cancel anytime from your payment app or by contacting support. You
+          keep access until the end of the period you have paid for.
+        </p>
       </Card>
 
       <SectionLabel>Spread the chaos</SectionLabel>

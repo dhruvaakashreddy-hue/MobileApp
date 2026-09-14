@@ -1,7 +1,11 @@
 # Decision needed: how to charge for the ₹99/month subscription
 
-**Status: open. I have not picked one — this one is yours, and it changes both
-the code and the distribution plan.**
+**Status: open, and now urgent.**
+
+Nudge is a hard-paywalled app: sign in, subscribe, and only then does anything
+work. That makes this decision blocking rather than academic — there is no free
+tier to fall back on if a store rejects the build, so getting it wrong means
+having no shippable product at all.
 
 The build prompt specified Razorpay. Razorpay is genuinely the right rail for
 ₹99/month in India (UPI Autopay and eNACH make small recurring amounts viable in
@@ -17,9 +21,11 @@ app:
   app must be bought via in-app purchase.
 - **Google** — Play Billing policy: the same, for in-app digital goods.
 
-Nudge's premium unlock is exactly that: personas unlocked inside the app. So
-shipping Razorpay checkout in a store build is a rejection risk on iOS and a
-policy violation on Play.
+Nudge is now the strongest possible case for this rule: the *entire app* is
+behind a ₹99/month subscription. Shipping Razorpay checkout in a store build is
+close to a guaranteed rejection on iOS and a policy violation on Play — Apple in
+particular rejects apps whose only path to any functionality is a non-IAP
+payment.
 
 ## The two honest options
 
@@ -69,10 +75,20 @@ No screen reads the provider directly, so nothing else has to change.
 
 ## My read, if you want one
 
-If Nudge is meant to be a real consumer app, **Option A**. Losing iOS entirely
-costs more than the store fee does, and sideloaded Android distribution caps
-your growth hard. Take the 15–30% and use Razorpay on a web checkout later, once
-you have the audience to make it worth splitting the flow.
+**Option A**, and more firmly than before. A hard paywall removes the middle
+ground: with no free tier, a rejection is not a setback, it is the end of that
+distribution channel. Take the 15–30% and use Razorpay on a web checkout later,
+once you have the audience to make splitting the flow worthwhile.
 
-Choose **Option B** only if you want to validate the idea cheaply among people
-you can reach directly, and treat it as a pre-launch rather than a launch.
+Choose **Option B** only to validate the idea among people you can reach
+directly, and treat it as a pre-launch rather than a launch.
+
+## Worth reconsidering: the hard paywall itself
+
+Not a blocker, but it should be a deliberate choice rather than a default.
+Asking for ₹99/month before anyone has felt a single nudge is the hardest sell
+in consumer apps — the usual pattern is a few days free precisely because people
+need to feel the product work before a price means anything. If conversion
+disappoints after launch, this is the first thing to change, and the code is
+ready for it: the gate is one condition in `src/App.tsx` (`needsSubscription`),
+so a trial is a matter of letting it pass while a trial window is open.

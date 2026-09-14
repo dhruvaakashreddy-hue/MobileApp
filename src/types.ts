@@ -24,7 +24,6 @@ export interface Persona {
   name: string;
   emoji: string;
   description: string;
-  isPremium: boolean;
   /** Label shown on the dismiss button of the in-app alert, in-character. */
   dismissLabel: string;
   /** Bundled notification sound filename (without extension on iOS). */

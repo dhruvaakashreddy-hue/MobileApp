@@ -18,10 +18,10 @@ import type { CountryCode } from 'libphonenumber-js';
  * create and where each value goes.
  * ──────────────────────────────────────────────────────────────────────────
  *
- * Note on the app's privacy story: Nudge otherwise makes no network calls and
- * stores nothing off-device. Sign-in is the one exception, which is why the
- * login screen offers "continue without an account" — a guest session keeps
- * the app fully functional and fully offline.
+ * Sign-in is required, and not only for the account itself: Nudge is a paid
+ * app, and a subscription needs an identity to attach to. A purchase made
+ * without one cannot be restored after a reinstall or on a new phone, which
+ * turns into a refund request rather than a happy customer.
  */
 
 /** The code the stub provider accepts. Shown on-screen while the stub is live. */
@@ -64,7 +64,7 @@ export function isProfileComplete(user: AuthUser): boolean {
   return !!user.displayName && user.displayName.trim().length > 0;
 }
 
-export type AuthMethod = 'phone' | 'guest';
+export type AuthMethod = 'phone';
 
 export interface AuthUser {
   id: string;
@@ -77,7 +77,7 @@ export interface AuthUser {
 
 export interface AuthSession {
   user: AuthUser;
-  /** Provider id token. Null for guest and stub sessions. */
+  /** Provider id token. Null for stub sessions. */
   token: string | null;
   signedInAt: number;
 }
@@ -246,20 +246,6 @@ export const sessionStore = {
   },
 };
 
-export function guestSession(): AuthSession {
-  return {
-    user: {
-      id: `guest-${Date.now().toString(36)}`,
-      method: 'guest',
-      phoneNumber: null,
-      email: null,
-      displayName: null,
-      photoUrl: null,
-    },
-    token: null,
-    signedInAt: Date.now(),
-  };
-}
 
 // ─── Stub provider (what ships today) ─────────────────────────────────────
 

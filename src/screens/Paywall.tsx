@@ -1,110 +1,76 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { PERSONAS } from '../data/personas';
-import { TASK_ACTIONS } from '../data/tasks';
-import { renderNudge } from '../lib/nudgePool';
+import { PERSONAS, NUDGES_PER_PERSONA } from '../data/personas';
 import { useApp } from '../state/AppContext';
-import { Button, IconButton, Screen } from '../components/ui';
+import { Button, Screen } from '../components/ui';
 import { PRICE_LABEL, PRICE_PERIOD, activeProvider } from '../lib/billing';
 
+/**
+ * The subscription gate.
+ *
+ * Nudge is a paid app, so this is not an upsell that can be dismissed — it is
+ * the last step before the app opens. The only ways past it are paying,
+ * restoring an existing subscription, or signing out.
+ */
 export function Paywall() {
-  const { buyPremium, restore, selectPersona, buzz } = useApp();
+  const { buyPremium, restore, signOut, session, buzz } = useApp();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'buy' | 'restore' | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const wanted = params.get('persona');
-  const locked = PERSONAS.filter((p) => p.isPremium);
-  const hero = locked.find((p) => p.id === wanted) ?? locked[0];
 
   const onBuy = async () => {
     buzz();
-    setBusy(true);
+    setBusy('buy');
     setError(null);
     const ok = await buyPremium();
-    setBusy(false);
+    setBusy(null);
     if (!ok) {
-      setError("That didn't go through. No charge was made — try again?");
+      setError("That didn't go through. You haven't been charged — try again?");
       return;
     }
-    // Drop them straight into the persona they came here for.
-    if (wanted) await selectPersona(wanted);
     navigate('/', { replace: true });
   };
 
   const onRestore = async () => {
     buzz();
-    setBusy(true);
+    setBusy('restore');
+    setError(null);
     const ok = await restore();
-    setBusy(false);
+    setBusy(null);
     if (ok) navigate('/', { replace: true });
-    else setError('No active subscription found on this device.');
+    else setError('No active subscription found for this account.');
   };
 
   return (
     <Screen>
-      <div className="flex justify-end pt-3">
-        <IconButton label="Close" onClick={() => navigate(-1)}>
-          ✕
-        </IconButton>
-      </div>
-
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="pb-8"
+        transition={{ duration: 0.3 }}
+        className="pt-10 pb-8"
       >
         <div
-          className={`mx-auto grid h-24 w-24 place-items-center rounded-3xl bg-gradient-to-br ${hero.theme.gradient} text-5xl`}
+          className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-fuchsia-500 via-purple-500 to-indigo-500 text-4xl"
           aria-hidden
         >
-          {hero.emoji}
+          🫡
         </div>
 
         <h1 className="mt-5 text-center font-display text-3xl leading-tight tracking-tight">
-          Let the others in
+          Nudge is {PRICE_LABEL} a {PRICE_PERIOD}
         </h1>
         <p className="mx-auto mt-2 max-w-xs text-center text-[15px] leading-snug text-white/55">
-          One voice gets predictable. Premium unlocks every persona, so you never
-          quite know who's coming for you.
+          One subscription, everything included. Cancel whenever you like.
         </p>
 
-        {/* Sample lines from each locked persona */}
-        <div className="mt-7 flex flex-col gap-3">
-          {locked.map((p) => (
-            <div
-              key={p.id}
-              className={`rounded-3xl bg-gradient-to-br ${p.theme.gradient} p-[1px]`}
-            >
-              <div className="rounded-[calc(1.5rem-1px)] bg-ink-card/90 p-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl" aria-hidden>{p.emoji}</span>
-                  <h2 className="font-display text-lg">{p.name}</h2>
-                </div>
-                <ul className="mt-3 flex flex-col gap-2">
-                  {[0, 1].map((i) => (
-                    <li
-                      key={i}
-                      className="rounded-xl bg-white/5 px-3 py-2 text-[14px] leading-snug"
-                    >
-                      “{renderNudge(p, TASK_ACTIONS[i * 17], i)}”
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <ul className="mt-6 flex flex-col gap-2.5">
+        <ul className="mt-7 flex flex-col gap-2.5">
           {[
-            'All 3 personas — 5,000 nudges each, no repeats',
-            'Every nudge category unlocked',
-            'Custom persona sounds',
-            'New line packs as they land, included',
+            `All ${PERSONAS.length} personas — swap whenever you fancy`,
+            `${NUDGES_PER_PERSONA.toLocaleString()} nudges each, none repeated until you've seen them all`,
+            'This-or-that: a real drill or something daft, your call',
+            'Your own schedule and active hours',
+            'Works offline — nothing about your day leaves your phone',
           ].map((item) => (
             <li key={item} className="flex items-start gap-3 text-[15px]">
               <span className="mt-0.5 text-emerald-400" aria-hidden>✓</span>
@@ -113,9 +79,27 @@ export function Paywall() {
           ))}
         </ul>
 
+        <div className="mt-7 flex gap-3">
+          {PERSONAS.map((p) => (
+            <div
+              key={p.id}
+              className={`flex-1 rounded-2xl bg-gradient-to-br ${p.theme.gradient} p-[1px]`}
+            >
+              <div className="flex h-full flex-col items-center justify-center rounded-[calc(1rem-1px)] bg-ink-card/90 px-2 py-3 text-center">
+                <span className="text-2xl" aria-hidden>{p.emoji}</span>
+                <span className="mt-1 text-[11px] font-bold leading-tight text-white/60">
+                  {p.name}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
         <div className="mt-7 rounded-3xl border-2 border-white/15 bg-white/5 p-5 text-center">
           <p className="font-display text-4xl leading-none">{PRICE_LABEL}</p>
-          <p className="mt-1 text-sm text-white/50">per {PRICE_PERIOD}, cancel anytime</p>
+          <p className="mt-1 text-sm text-white/50">
+            per {PRICE_PERIOD}, cancel anytime
+          </p>
         </div>
 
         {error && (
@@ -126,35 +110,47 @@ export function Paywall() {
 
         <Button
           full
-          disabled={busy}
-          accent={hero.theme.accent}
-          onAccent={hero.theme.onAccent}
+          disabled={busy !== null}
           className="mt-5 h-14"
           onClick={onBuy}
         >
-          {busy ? 'One moment…' : `Unlock everything`}
+          {busy === 'buy' ? 'One moment…' : `Subscribe — ${PRICE_LABEL}/${PRICE_PERIOD}`}
         </Button>
 
         <button
           onClick={onRestore}
-          disabled={busy}
-          className="tap mt-2 w-full rounded-2xl px-4 text-sm font-semibold text-white/55 transition active:bg-white/5"
+          disabled={busy !== null}
+          className="tap mt-2 w-full rounded-2xl px-4 text-sm font-semibold text-white/55 transition active:bg-white/5 disabled:opacity-40"
         >
-          Restore purchases
+          {busy === 'restore' ? 'Checking…' : 'I already subscribed — restore'}
         </button>
 
         {activeProvider.id === 'stub' && (
           // Visible only while billing is stubbed, so nobody mistakes the
           // sandbox unlock for a real transaction. Remove with the stub.
           <p className="mt-4 rounded-2xl border border-dashed border-amber-400/30 bg-amber-400/5 px-4 py-3 text-center text-[12px] leading-snug text-amber-200/70">
-            Developer build — billing is not connected yet. This button unlocks
-            premium locally and charges nothing.
+            Developer build — billing is not connected yet. This button
+            subscribes locally and charges nothing.
           </p>
         )}
 
-        <p className="mt-4 px-2 text-center text-[11px] leading-relaxed text-white/30">
-          Subscription renews automatically until cancelled. Everything Nudge
-          stores stays on this device.
+        {/* The gate cannot be dismissed, but the account is not a trap: signing
+            out returns to the login screen so a different number can be used. */}
+        <button
+          onClick={() => {
+            buzz();
+            void signOut();
+          }}
+          disabled={busy !== null}
+          className="tap mt-6 w-full rounded-2xl px-4 text-[13px] font-semibold text-white/35 transition active:bg-white/5"
+        >
+          {session?.user.phoneNumber
+            ? 'Sign out and use a different number'
+            : 'Sign out'}
+        </button>
+
+        <p className="mt-3 px-2 text-center text-[11px] leading-relaxed text-white/30">
+          Renews automatically until cancelled.
         </p>
       </motion.div>
     </Screen>

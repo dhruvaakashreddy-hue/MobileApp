@@ -2,19 +2,15 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { NUDGES_PER_PERSONA, PERSONAS, previewLine } from '../data/personas';
 import { useApp } from '../state/AppContext';
-import { IconButton, LockBadge, Screen, ScreenHeader } from '../components/ui';
+import { IconButton, Screen, ScreenHeader } from '../components/ui';
 import type { Persona } from '../types';
 
 export function Personas() {
-  const { settings, selectPersona, isPersonaLocked, buzz } = useApp();
+  const { settings, selectPersona, buzz } = useApp();
   const navigate = useNavigate();
 
   const onPick = async (persona: Persona) => {
     buzz();
-    if (isPersonaLocked(persona)) {
-      navigate(`/paywall?persona=${persona.id}`);
-      return;
-    }
     await selectPersona(persona.id);
     navigate('/');
   };
@@ -33,7 +29,6 @@ export function Personas() {
 
       <div className="flex flex-col gap-4 pb-8">
         {PERSONAS.map((persona, i) => {
-          const locked = isPersonaLocked(persona);
           const active = settings.personaId === persona.id;
           return (
             <motion.button
@@ -42,11 +37,7 @@ export function Personas() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06, duration: 0.28 }}
               onClick={() => onPick(persona)}
-              aria-label={
-                locked
-                  ? `${persona.name}, premium, tap to unlock`
-                  : `Use ${persona.name}`
-              }
+              aria-label={`Use ${persona.name}`}
               className={`relative w-full overflow-hidden rounded-3xl p-[2px] text-left transition active:scale-[0.985] ${
                 active ? 'ring-2 ring-white/70 ring-offset-2 ring-offset-ink' : ''
               }`}
@@ -55,9 +46,7 @@ export function Personas() {
                 <div className="rounded-[calc(1.5rem-1px)] bg-ink-card/90 p-5">
                   <div className="flex items-start gap-4">
                     <span
-                      className={`grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${persona.theme.gradient} text-4xl ${
-                        locked ? 'opacity-60 grayscale' : ''
-                      }`}
+                      className={`grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${persona.theme.gradient} text-4xl`}
                       aria-hidden
                     >
                       {persona.emoji}
@@ -72,7 +61,6 @@ export function Personas() {
                             Active
                           </span>
                         )}
-                        {locked && <LockBadge />}
                       </div>
                       <p className="mt-1.5 text-[13px] leading-snug text-white/50">
                         {persona.description}
@@ -82,16 +70,12 @@ export function Personas() {
 
                   <blockquote className="mt-4 rounded-2xl bg-white/5 px-4 py-3">
                     <p
-                      className={`text-[15px] font-semibold leading-snug ${
-                        locked ? 'blur-[3px] select-none' : ''
-                      }`}
+                      className="text-[15px] font-semibold leading-snug"
                     >
                       “{previewLine(persona)}”
                     </p>
                     <p className="mt-2 text-[11px] font-bold uppercase tracking-wider text-white/35">
-                      {locked
-                        ? 'Unlock to hear the other 4,999'
-                        : `${NUDGES_PER_PERSONA.toLocaleString()} nudges, never repeated`}
+                      {`${NUDGES_PER_PERSONA.toLocaleString()} nudges, never repeated`}
                     </p>
                   </blockquote>
                 </div>

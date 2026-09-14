@@ -18,7 +18,8 @@ import { isNative } from './lib/notifications';
 import { useBackButton } from './lib/useBackButton';
 
 function Routed() {
-  const { ready, session, profileComplete, settings, activeNudge } = useApp();
+  const { ready, session, profileComplete, premiumActive, settings, activeNudge } =
+    useApp();
   const location = useLocation();
 
   // While a nudge card is up, back is swallowed: answering it is mandatory, so
@@ -47,35 +48,40 @@ function Routed() {
     );
   }
 
-  // Sign-in gates everything. A guest session counts as signed in, so
-  // "continue without an account" lands straight in the app.
+  // The gate runs in order: sign in, set up a profile, subscribe, then
+  // onboarding. Each step is skipped once it is done.
   if (!session && location.pathname !== '/login') {
     return <Navigate to="/login" replace />;
   }
 
-  // A signed-in user sets up their profile once, before anything else.
-  // Guests are exempt: they deliberately chose not to hand over details, so
-  // demanding a name immediately after would contradict that. They can still
-  // set one later from Settings.
-  const needsProfile =
-    !!session && session.user.method !== 'guest' && !profileComplete;
-
+  const needsProfile = !!session && !profileComplete;
   if (needsProfile && location.pathname !== '/profile') {
     return <Navigate to="/profile" replace />;
   }
 
-  // Once past sign-in and profile, first launch goes through onboarding.
+  // Nudge is a paid app: no subscription, no nudges. The paywall is a gate
+  // rather than an upsell, so it cannot be dismissed past — only paid,
+  // restored, or signed out of.
+  const needsSubscription = !!session && !needsProfile && !premiumActive;
+  if (needsSubscription && location.pathname !== '/paywall') {
+    return <Navigate to="/paywall" replace />;
+  }
+
   if (
     session &&
     !needsProfile &&
+    !needsSubscription &&
     !settings.onboarded &&
     location.pathname !== '/onboarding'
   ) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Nothing to do on the login screen once a session exists.
+  // Nothing to do on the login or paywall screens once they are satisfied.
   if (session && location.pathname === '/login') {
+    return <Navigate to="/" replace />;
+  }
+  if (session && !needsSubscription && location.pathname === '/paywall') {
     return <Navigate to="/" replace />;
   }
 

@@ -40,7 +40,6 @@ import {
 import { registerDeepLinks } from '../lib/deeplink';
 import {
   activeProvider as authProvider,
-  guestSession,
   isProfileComplete,
   sessionStore,
   type AuthSession,
@@ -78,7 +77,6 @@ interface AppState {
   requeueNext: () => Promise<void>;
   nudgeMeNow: () => Promise<void>;
   profileComplete: boolean;
-  continueAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
 
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
@@ -92,7 +90,6 @@ interface AppState {
   showNudge: (payload: NudgePayload) => void;
   chooseNudge: (pick: 'healthy' | 'chaos') => Promise<void>;
   buzz: (style?: ImpactStyle) => void;
-  isPersonaLocked: (persona: Persona) => boolean;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -220,7 +217,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const check = async () => {
-      if (cancelled || !settingsRef.current.enabled) return;
+      if (cancelled) return;
+      // Cheap local expiry check on the same tick — no network, and it flips
+      // the router back to the paywall the moment a subscription runs out.
+      if (premiumRef.current.active && !isPremiumActive(premiumRef.current)) {
+        const cleared = await checkSubscriptionStatus();
+        if (!cancelled) applyPremium(cleared);
+        return;
+      }
+      if (!settingsRef.current.enabled) return;
       try {
         await runCheck();
       } catch (err) {
@@ -273,7 +278,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [ready, syncFromSystem]);
+  }, [ready, syncFromSystem, applyPremium]);
 
   // Coming back to the foreground is when stats and the buffer get refreshed.
   useEffect(() => {
@@ -281,7 +286,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let handle: { remove: () => Promise<void> } | null = null;
     (async () => {
       handle = await CapApp.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) void syncFromSystem();
+        if (!isActive) return;
+        void syncFromSystem();
+        // Nudge is a paid app, so entitlement is re-checked on every resume
+        // rather than only at launch — otherwise a subscription that lapses
+        // mid-session keeps working until the app is restarted.
+        void checkSubscriptionStatus().then(applyPremium);
       });
     })();
     return () => {
@@ -343,16 +353,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [updateSettings],
   );
 
-  const isPersonaLocked = useCallback(
-    (p: Persona) => p.isPremium && !premiumActive,
-    [premiumActive],
-  );
 
   const selectPersona = useCallback(
     async (id: string) => {
-      const p = getPersona(id);
-      if (p.isPremium && !isPremiumActive(premiumRef.current)) return;
-      await updateSettings({ personaId: id });
+      await updateSettings({ personaId: getPersona(id).id });
     },
     [updateSettings],
   );
@@ -415,9 +419,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [persistSession],
   );
 
-  const continueAsGuest = useCallback(async () => {
-    await persistSession(guestSession());
-  }, [persistSession]);
 
   /**
    * Shows a this-or-that immediately, without touching the schedule. Takes from
@@ -491,7 +492,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       nudgeMeNow,
       chooseNudge,
       profileComplete: session ? isProfileComplete(session.user) : false,
-      continueAsGuest,
       signOut,
       updateSettings,
       setEnabled,
@@ -503,15 +503,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       restore,
       showNudge: setActiveNudge,
       buzz,
-      isPersonaLocked,
     }),
     [
       ready, session, settings, stats, premium, premiumActive, permission,
       nextFireAt, activeNudge, sendPhoneCode, signInWithPhone, saveProfile,
       requeueNext, nudgeMeNow, chooseNudge,
-      continueAsGuest, signOut, updateSettings, setEnabled, selectPersona,
+      signOut, updateSettings, setEnabled, selectPersona,
       toggleCategory, askPermission, completeOnboarding, buyPremium, restore,
-      buzz, isPersonaLocked,
+      buzz,
     ],
   );
 

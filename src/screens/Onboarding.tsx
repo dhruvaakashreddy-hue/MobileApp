@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PERSONAS, previewLine } from '../data/personas';
 import { useApp } from '../state/AppContext';
-import { Button, LockBadge, Screen } from '../components/ui';
+import { Button, Screen } from '../components/ui';
 import { ActiveHoursPicker } from '../components/ActiveHoursPicker';
 import { isNative } from '../lib/notifications';
 import type { Persona } from '../types';
@@ -13,7 +13,7 @@ type Step = (typeof STEPS)[number];
 
 export function Onboarding() {
   const {
-    settings, persona, updateSettings, selectPersona, isPersonaLocked,
+    settings, persona, updateSettings, selectPersona,
     askPermission, completeOnboarding, permission, buzz,
   } = useApp();
   const navigate = useNavigate();
@@ -30,10 +30,6 @@ export function Onboarding() {
 
   const onPickPersona = async (p: Persona) => {
     buzz();
-    if (isPersonaLocked(p)) {
-      navigate(`/paywall?persona=${p.id}`);
-      return;
-    }
     await selectPersona(p.id);
   };
 
@@ -124,7 +120,6 @@ export function Onboarding() {
                 />
                 <div className="flex flex-col gap-3">
                   {PERSONAS.map((p) => {
-                    const locked = isPersonaLocked(p);
                     const active = settings.personaId === p.id;
                     return (
                       <button
@@ -139,9 +134,7 @@ export function Onboarding() {
                       >
                         <div className="flex items-center gap-3">
                           <span
-                            className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${p.theme.gradient} text-2xl ${
-                              locked ? 'opacity-60 grayscale' : ''
-                            }`}
+                            className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${p.theme.gradient} text-2xl`}
                             aria-hidden
                           >
                             {p.emoji}
@@ -151,7 +144,6 @@ export function Onboarding() {
                               <span className="font-display text-lg leading-none">
                                 {p.name}
                               </span>
-                              {locked && <LockBadge />}
                             </div>
                             <p className="mt-1 text-[13px] text-white/45">
                               {p.description}
@@ -159,9 +151,7 @@ export function Onboarding() {
                           </div>
                         </div>
                         <p
-                          className={`mt-3 rounded-xl bg-white/5 px-3 py-2 text-[14px] leading-snug ${
-                            locked ? 'blur-[3px] select-none' : ''
-                          }`}
+                          className="mt-3 rounded-xl bg-white/5 px-3 py-2 text-[14px] leading-snug"
                         >
                           “{previewLine(p)}”
                         </p>

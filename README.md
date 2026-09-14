@@ -6,9 +6,11 @@ persona you pick, at times you can't predict.
 Cross-platform (Android + iOS) via Capacitor. **Local-first: the nudge engine
 makes no network calls at all**, and all 90 lines ship bundled in the app.
 
-Sign-in (phone OTP) is the one networked feature, and it is deliberately
-optional — "continue without an account" gives a fully functional, fully
-offline app. See `docs/AUTH_SETUP.md`.
+**Nudge is a paid app: ₹99/month.** Sign in, subscribe, then the app opens —
+there is no free tier and no guest mode, because a subscription needs an
+identity to attach to or it cannot be restored on a new phone. Sign-in and
+payment are the only networked features; everything about your actual day stays
+on the device. See `docs/AUTH_SETUP.md` and `docs/BILLING_DECISION.md`.
 
 ---
 
@@ -191,9 +193,11 @@ docs/                  the decisions and manual steps left for you
 
 ## ⚠️ Before you ship
 
-**Billing is stubbed.** `stubProvider` in `src/lib/billing.ts` unlocks premium
-for free, locally, to anyone who taps the button. The paywall shows a visible
-developer-build warning while it's active.
+**Billing is stubbed.** `stubProvider` in `src/lib/billing.ts` grants a 30-day
+subscription for free, locally, to anyone who taps the button. The paywall shows
+a visible developer-build warning while it's active. Since the whole app sits
+behind that button, this is the single most important thing to swap before
+release.
 
 **Sign-in is stubbed.** `src/lib/auth.ts` sends no SMS and accepts the code
 `123456` for any number that passes format validation. The OTP screen shows a developer-build banner while

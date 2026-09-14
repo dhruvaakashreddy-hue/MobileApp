@@ -24,7 +24,7 @@ import {
 const RESEND_SECONDS = 30;
 
 export function Login() {
-  const { signInWithPhone, sendPhoneCode, continueAsGuest, buzz } = useApp();
+  const { signInWithPhone, sendPhoneCode, buzz } = useApp();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<'phone' | 'code'>('phone');
@@ -87,11 +87,6 @@ export function Login() {
     }
   };
 
-  const guest = async () => {
-    buzz();
-    await continueAsGuest();
-    navigate('/', { replace: true });
-  };
 
   return (
     <Screen>
@@ -119,8 +114,8 @@ export function Login() {
                   Welcome to Nudge
                 </h1>
                 <p className="mx-auto mt-2 max-w-xs text-[15px] leading-snug text-white/55">
-                  Verify your phone number and your personas and streak follow
-                  you to a new phone.
+                  Verify your number so your subscription and streak follow you
+                  to a new phone.
                 </p>
               </div>
 
@@ -288,21 +283,6 @@ export function Login() {
           )}
         </AnimatePresence>
 
-        {/* Guest escape hatch. Nudge works fully offline without an account —
-            see docs/AUTH_SETUP.md if you'd rather make sign-in mandatory. */}
-        <div className="mt-8 nav-pb-safe">
-          <button
-            onClick={guest}
-            disabled={busy}
-            className="tap w-full rounded-2xl text-sm font-semibold text-white/40 transition active:bg-white/5"
-          >
-            Continue without an account
-          </button>
-          <p className="mt-2 px-4 text-center text-[11px] leading-relaxed text-white/25">
-            Nudge works fully offline. An account only exists so your settings
-            and streak can move to a new phone.
-          </p>
-        </div>
       </div>
     </Screen>
   );
