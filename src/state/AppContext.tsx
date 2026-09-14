@@ -151,23 +151,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [s, st, perm, savedSession] = await Promise.all([
-        store.getSettings(),
-        store.getStats(),
-        checkPermission(),
-        sessionStore.get(),
-      ]);
-      const prem = await checkSubscriptionStatus();
-      if (cancelled) return;
+      try {
+        const [s, st, perm, savedSession] = await Promise.all([
+          store.getSettings(),
+          store.getStats(),
+          checkPermission(),
+          sessionStore.get(),
+        ]);
+        const prem = await checkSubscriptionStatus();
+        if (cancelled) return;
 
-      settingsRef.current = s;
-      setSettings(s);
-      setStats(normalizeStats(st));
-      applyPremium(prem);
-      setPermission(perm);
-      setSession(savedSession);
-      await syncFromSystem();
-      if (!cancelled) setReady(true);
+        settingsRef.current = s;
+        setSettings(s);
+        setStats(normalizeStats(st));
+        applyPremium(prem);
+        setPermission(perm);
+        setSession(savedSession);
+        await syncFromSystem();
+      } catch (err) {
+        // Whatever failed, the app must still open. Anything thrown here used
+        // to leave `ready` false forever, which showed as an app frozen on the
+        // splash screen with no way out — far worse than starting with
+        // defaults and recovering on the next interaction.
+        console.error('[nudge] boot failed, continuing with defaults', err);
+      } finally {
+        if (!cancelled) setReady(true);
+      }
     })();
     return () => {
       cancelled = true;
@@ -213,7 +222,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const check = async () => {
       if (cancelled || !settingsRef.current.enabled) return;
+      try {
+        await runCheck();
+      } catch (err) {
+        console.warn('[nudge] delivery check failed', err);
+      }
+    };
 
+    const runCheck = async () => {
       const [plan, creditedThrough] = await Promise.all([
         store.getPlan(),
         store.getCreditedThrough(),

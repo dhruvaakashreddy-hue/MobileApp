@@ -144,6 +144,20 @@ export function isValidPlannedNudge(v: unknown): v is PlannedNudge {
   );
 }
 
+export function isValidQueue(v: unknown): v is NudgeQueue {
+  if (!v || typeof v !== 'object') return false;
+  const q = v as Record<string, unknown>;
+  const num = (x: unknown) => typeof x === 'number' && Number.isFinite(x);
+  return (
+    typeof q.poolKey === 'string' &&
+    num(q.seed) &&
+    num(q.cursor) &&
+    num(q.cycles) &&
+    num(q.chaosSeed) &&
+    num(q.chaosCursor)
+  );
+}
+
 export const store = {
   getSettings: () => readJSON<Settings>(KEYS.settings, DEFAULT_SETTINGS),
   setSettings: (s: Settings) => writeJSON(KEYS.settings, s),
@@ -190,7 +204,12 @@ export const store = {
   async getQueue(): Promise<NudgeQueue | null> {
     try {
       const { value } = await Preferences.get({ key: KEYS.queue });
-      return value ? (JSON.parse(value) as NudgeQueue) : null;
+      if (!value) return null;
+      const parsed = JSON.parse(value) as unknown;
+      // A queue saved before the this-or-that change has no chaos cursor, and
+      // reading past the end of an undefined cursor throws. Returning null here
+      // makes the caller start a fresh cycle instead.
+      return isValidQueue(parsed) ? parsed : null;
     } catch {
       return null;
     }

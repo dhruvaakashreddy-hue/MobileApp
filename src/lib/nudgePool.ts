@@ -100,8 +100,12 @@ export function nudgeAt(
   if (actions.length === 0) return null;
 
   const wrapperCount = persona.wrappers.length;
-  const wrapperIndex = index % wrapperCount;
-  const action = actions[Math.floor(index / wrapperCount) % actions.length];
+  const total = wrapperCount * actions.length;
+  const safe = Number.isFinite(index)
+    ? ((Math.floor(index) % total) + total) % total
+    : 0;
+  const wrapperIndex = safe % wrapperCount;
+  const action = actions[Math.floor(safe / wrapperCount)];
 
   return {
     id: `${persona.id}:${wrapperIndex}:${action.id}`,
@@ -113,9 +117,15 @@ export function nudgeAt(
 /** Maps a chaos-pool index to its rendered nudge. */
 export function chaosAt(persona: Persona, index: number): RenderedNudge {
   const wrapperCount = persona.wrappers.length;
-  const wrapperIndex = index % wrapperCount;
-  const action =
-    CHAOS_ACTIONS[Math.floor(index / wrapperCount) % CHAOS_ACTIONS.length];
+  // Normalise first: an out-of-range or non-finite index would otherwise index
+  // the array with NaN and yield undefined.
+  const safe = Number.isFinite(index)
+    ? ((Math.floor(index) % (wrapperCount * CHAOS_ACTIONS.length)) +
+        wrapperCount * CHAOS_ACTIONS.length) %
+      (wrapperCount * CHAOS_ACTIONS.length)
+    : 0;
+  const wrapperIndex = safe % wrapperCount;
+  const action = CHAOS_ACTIONS[Math.floor(safe / wrapperCount)];
 
   return {
     id: `${persona.id}:chaos:${wrapperIndex}:${action.id}`,

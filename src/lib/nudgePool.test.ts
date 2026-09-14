@@ -259,3 +259,21 @@ describe('this-or-that pairing', () => {
     assert.equal(new Set(res.choices.map((c) => c.chaos.id)).size, 2500);
   });
 });
+
+describe('pool lookups survive a bad index', () => {
+  const persona = PERSONAS[0];
+
+  it('never returns undefined for an out-of-range or non-finite index', () => {
+    // A stale cursor once produced NaN here, which indexed the action array as
+    // undefined and threw on `.id` — taking the whole app down at boot.
+    for (const bad of [NaN, Infinity, -Infinity, -1, -9999, 1e9, 5000, 2500]) {
+      const chaos = chaosAt(persona, bad as number);
+      assert.ok(chaos && typeof chaos.id === 'string', `chaosAt(${bad})`);
+      assert.ok(!chaos.text.includes('{t}'), `chaosAt(${bad}) left a slot`);
+
+      const healthy = nudgeAt(persona, ALL_CATEGORIES, bad as number);
+      assert.ok(healthy && typeof healthy.id === 'string', `nudgeAt(${bad})`);
+      assert.ok(!healthy!.text.includes('{t}'), `nudgeAt(${bad}) left a slot`);
+    }
+  });
+});
