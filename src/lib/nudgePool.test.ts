@@ -198,9 +198,13 @@ describe('this-or-that pairing', () => {
   const persona = PERSONAS[0];
   const ALL2 = ALL_CATEGORIES;
 
-  it('offers a chaos option for every persona', () => {
-    assert.equal(CHAOS_ACTIONS.length, 50);
-    for (const p of PERSONAS) assert.equal(chaosPoolSize(p), 50 * 50);
+  it('offers as many chaos options as healthy ones', () => {
+    assert.equal(CHAOS_ACTIONS.length, 100);
+    for (const p of PERSONAS) {
+      assert.equal(chaosPoolSize(p), 100 * 50);
+      // The two sides are the same size now, so neither recycles faster.
+      assert.equal(chaosPoolSize(p), poolSize(p, ALL_CATEGORIES));
+    }
   });
 
   it('renders chaos options in the persona voice with no unfilled slot', () => {
@@ -251,12 +255,12 @@ describe('this-or-that pairing', () => {
     assert.equal(seen.size, 5000);
   });
 
-  it('recycles the smaller chaos pool without ever blocking', () => {
-    // Chaos has 2,500 entries against 5,000 healthy, so it wraps twice.
-    let queue = createQueue(persona, ALL2, 1, 2);
+  it('runs the chaos side repeat-free across a full cycle too', () => {
+    // Both pools are 5,000 now, so a full cycle uses every chaos option once.
+    const queue = createQueue(persona, ALL2, 1, 2);
     const res = takeFromQueue(queue, persona, ALL2, 5000);
     assert.equal(res.choices.length, 5000);
-    assert.equal(new Set(res.choices.map((c) => c.chaos.id)).size, 2500);
+    assert.equal(new Set(res.choices.map((c) => c.chaos.id)).size, 5000);
   });
 });
 

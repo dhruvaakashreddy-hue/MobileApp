@@ -34,9 +34,20 @@ describe('healthy tasks are exercises and resets', () => {
 });
 
 describe('chaos tasks are short', () => {
-  it('has 50 unique actions', () => {
-    assert.equal(CHAOS_ACTIONS.length, 50);
-    assert.equal(new Set(CHAOS_ACTIONS.map((t) => t.text)).size, 50);
+  it('has 100 unique actions, matching the healthy side', () => {
+    assert.equal(CHAOS_ACTIONS.length, 100);
+    assert.equal(new Set(CHAOS_ACTIONS.map((t) => t.text)).size, 100);
+    assert.equal(new Set(CHAOS_ACTIONS.map((t) => t.id)).size, 100);
+    assert.equal(CHAOS_ACTIONS.length, TASK_ACTIONS.length);
+  });
+
+  it('has no escaping damage in the text', () => {
+    // A generator once double-escaped apostrophes and shipped "you\\'re" into
+    // the UI. Nothing here should contain a backslash at all.
+    for (const t of [...CHAOS_ACTIONS, ...TASK_ACTIONS]) {
+      assert.ok(!t.text.includes('\\'), `${t.id} has a stray backslash: ${t.text}`);
+      assert.ok(!/\s{2,}/.test(t.text), `${t.id} has doubled spaces`);
+    }
   });
 
   it('keeps every one to a handful of words', () => {
