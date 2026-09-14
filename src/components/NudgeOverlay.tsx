@@ -29,8 +29,12 @@ export function NudgeOverlay() {
    * card instead of doing nothing — silence would read as the app being frozen,
    * where a shake says "pick one" without needing words.
    *
-   * Driven imperatively rather than through a changing `animate` prop, so that
-   * repeated attempts each replay the shake instead of only the first.
+   * The shake runs on its own wrapper element, never on the card itself. The
+   * card's entrance must stay declarative: making visibility depend on an
+   * imperative `controls.start()` meant that if the call did not land — as
+   * happens under StrictMode's double-invoked effects — the card stayed at
+   * opacity 0 and the nudge looked blank. If these controls never fire now,
+   * the only thing lost is the shake.
    */
   const nag = useCallback(() => {
     buzz(ImpactStyle.Heavy);
@@ -70,17 +74,6 @@ export function NudgeOverlay() {
     !!activeNudge && !!activeNudge.healthy?.text && !!activeNudge.chaos?.text;
   const persona = usable ? getPersona(activeNudge!.personaId) : null;
 
-  // Play the entrance through the same controls the shake uses.
-  useEffect(() => {
-    if (!activeNudge) return;
-    void controls.start({
-      scale: 1,
-      opacity: 1,
-      y: 0,
-      transition: { type: 'spring', stiffness: 460, damping: 26, mass: 0.7 },
-    });
-  }, [activeNudge, controls]);
-
   const pick = async (choice: 'healthy' | 'chaos') => {
     if (picked) return;
     buzz(ImpactStyle.Heavy);
@@ -111,12 +104,19 @@ export function NudgeOverlay() {
             className="absolute inset-0 h-full w-full bg-black/80 backdrop-blur-md"
           />
 
+          {/* Outer wrapper carries the shake; the card carries the entrance. */}
           <motion.div
-            className={`relative w-full max-w-sm overflow-hidden rounded-[2rem] bg-gradient-to-br ${persona.theme.gradient} p-[2px] shadow-2xl`}
-            initial={reduceMotion ? { opacity: 0 } : { scale: 0.85, opacity: 0, y: 20 }}
+            className="relative w-full max-w-sm"
+            initial={{ x: 0 }}
             animate={controls}
-            exit={reduceMotion ? { opacity: 0 } : { scale: 0.94, opacity: 0, y: 10 }}
           >
+            <motion.div
+              className={`w-full overflow-hidden rounded-[2rem] bg-gradient-to-br ${persona.theme.gradient} p-[2px] shadow-2xl`}
+              initial={reduceMotion ? { opacity: 0 } : { scale: 0.85, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { scale: 0.94, opacity: 0, y: 10 }}
+              transition={{ type: 'spring', stiffness: 460, damping: 26, mass: 0.7 }}
+            >
             <div className="rounded-[calc(2rem-2px)] bg-ink/95 px-4 pt-6 pb-6">
               <div className="flex flex-col items-center text-center">
                 <motion.span
@@ -171,7 +171,8 @@ export function NudgeOverlay() {
                   onClick={() => void pick('chaos')}
                 />
               </div>
-            </div>
+              </div>
+            </motion.div>
           </motion.div>
         </motion.div>
       )}
