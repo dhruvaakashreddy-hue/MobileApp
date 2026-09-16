@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { PERSONAS, NUDGES_PER_PERSONA } from '../data/personas';
 import { useApp } from '../state/AppContext';
 import { Button, Screen } from '../components/ui';
-import { PRICE_LABEL, PRICE_PERIOD, activeProvider } from '../lib/billing';
+import { PRICE_LABEL, PRICE_PERIOD, billingIsLive } from '../lib/billing';
 
 /**
  * The subscription gate.
@@ -23,10 +23,15 @@ export function Paywall() {
     buzz();
     setBusy('buy');
     setError(null);
+    // Opens Razorpay Checkout — UPI, card, netbanking or wallet — and resolves
+    // once the server has confirmed the payment, or the customer backs out.
     const ok = await buyPremium();
     setBusy(null);
     if (!ok) {
-      setError("That didn't go through. You haven't been charged — try again?");
+      setError(
+        "That didn't go through, so you haven't been charged. If you did pay, " +
+          'give it a moment and tap restore.',
+      );
       return;
     }
     navigate('/', { replace: true });
@@ -102,6 +107,10 @@ export function Paywall() {
           </p>
         </div>
 
+        <p className="mt-3 text-center text-[12px] text-white/40">
+          UPI · GPay · PhonePe · Paytm · Cards · Netbanking
+        </p>
+
         {error && (
           <p className="mt-4 text-center text-sm text-rose-300" role="alert">
             {error}
@@ -114,7 +123,9 @@ export function Paywall() {
           className="mt-5 h-14"
           onClick={onBuy}
         >
-          {busy === 'buy' ? 'One moment…' : `Subscribe — ${PRICE_LABEL}/${PRICE_PERIOD}`}
+          {busy === 'buy'
+            ? 'Waiting for payment…'
+            : `Subscribe — ${PRICE_LABEL}/${PRICE_PERIOD}`}
         </Button>
 
         <button
@@ -125,11 +136,18 @@ export function Paywall() {
           {busy === 'restore' ? 'Checking…' : 'I already subscribed — restore'}
         </button>
 
-        {activeProvider.id === 'stub' && (
-          // Visible only while billing is stubbed, so nobody mistakes the
-          // sandbox unlock for a real transaction. Remove with the stub.
+        {busy === 'buy' && (
+          <p className="mt-3 text-center text-[12px] leading-snug text-white/45">
+            Finish paying in the window that opened. This screen unlocks by
+            itself once the payment is confirmed.
+          </p>
+        )}
+
+        {!billingIsLive() && (
+          // Visible only while VITE_API_BASE_URL is unset, so nobody mistakes
+          // the development unlock for a real transaction.
           <p className="mt-4 rounded-2xl border border-dashed border-amber-400/30 bg-amber-400/5 px-4 py-3 text-center text-[12px] leading-snug text-amber-200/70">
-            Developer build — billing is not connected yet. This button
+            Developer build — no payment server configured. This button
             subscribes locally and charges nothing.
           </p>
         )}
@@ -150,7 +168,8 @@ export function Paywall() {
         </button>
 
         <p className="mt-3 px-2 text-center text-[11px] leading-relaxed text-white/30">
-          Renews automatically until cancelled.
+          {PRICE_LABEL} is charged monthly via UPI Autopay or your card, and
+          renews automatically until you cancel. Cancel any time from Settings.
         </p>
       </motion.div>
     </Screen>

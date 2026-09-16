@@ -22,7 +22,7 @@ stores require once you ship login.
 
 ---
 
-## 2. Razorpay account and KYC (only if you picked Option B, or for a web checkout)
+## 2. Razorpay account and KYC (needed for the Subscribe button to take money)
 
 1. Create a Razorpay business account at https://razorpay.com.
 2. Complete KYC in **their dashboard**: PAN, GST if applicable, and your bank
@@ -47,15 +47,17 @@ The app cannot create or verify subscriptions on its own — see `api/README.md`
    subscribing to `subscription.activated`, `subscription.charged`,
    `subscription.halted`, `subscription.cancelled`, `subscription.completed`.
 4. Put the deployed base URL in `.env` as `VITE_API_BASE_URL`.
-5. **Replace the in-memory store in `api/_store.ts` with a real database.** As
-   written, every cold start forgets who has paid.
-6. Switch `activeProvider` in `src/lib/billing.ts` from `stubProvider` to
-   `razorpayProvider`, and delete `stubProvider`.
+5. **Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.** Without a
+   durable store, every cold start forgets who has paid.
 
-> ⚠️ **The stub unlocks premium for free.** `stubProvider` grants a 30-day local
-> entitlement to anyone who taps the button. The paywall shows a visible
-> developer-build warning while it is active. Do not ship a store build until
-> this is swapped out.
+That is the whole switch-over — `VITE_API_BASE_URL` is what turns real payments
+on. Step by step, with test cards and a local-testing checklist:
+**`docs/RAZORPAY_SETUP.md`**.
+
+> ⚠️ **Until `VITE_API_BASE_URL` is set, the paywall unlocks for free.** The
+> development stub grants a 30-day local entitlement to anyone who taps the
+> button, and the paywall shows a visible developer-build warning while it is
+> active. Any real build sets that URL, which switches it off.
 
 ---
 

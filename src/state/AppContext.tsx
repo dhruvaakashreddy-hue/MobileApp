@@ -47,16 +47,36 @@ import {
   type PhoneChallenge,
 } from '../lib/auth';
 import {
+  cancelSubscription as cancelBilling,
   checkSubscriptionStatus,
   isPremiumActive,
+  refreshEntitlement,
   restorePurchases,
   unlockPremium,
+  type Subscriber,
 } from '../lib/billing';
 
 export interface ProfilePatch {
   displayName: string;
   email: string | null;
   photoUrl: string | null;
+}
+
+/**
+ * Billing is keyed on the account, not the handset: a subscription bought on
+ * one phone must come back when the same number signs in on another. Before
+ * anyone has signed in there is no account, and billing falls back to a
+ * per-install id.
+ */
+function subscriberFor(session: AuthSession | null): Subscriber | undefined {
+  const user = session?.user;
+  if (!user) return undefined;
+  return {
+    id: user.id,
+    phoneNumber: user.phoneNumber,
+    name: user.displayName,
+    email: user.email,
+  };
 }
 
 interface AppState {
@@ -87,6 +107,7 @@ interface AppState {
   completeOnboarding: () => Promise<void>;
   buyPremium: () => Promise<boolean>;
   restore: () => Promise<boolean>;
+  cancelSubscription: () => Promise<boolean>;
   showNudge: (payload: NudgePayload) => void;
   chooseNudge: (pick: 'healthy' | 'chaos') => Promise<void>;
   buzz: (style?: ImpactStyle) => void;
@@ -200,14 +221,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [syncFromSystem]);
 
-  // Razorpay's hosted checkout returns through a deep link.
+  /**
+   * Applies an entitlement AND files it against the account, so it survives a
+   * sign-out. Everything that can change entitlement goes through here.
+   */
+  const applyAndSavePremium = useCallback(
+    async (p: Premium) => {
+      applyPremium(p);
+      const userId = sessionRef.current?.user.id;
+      if (userId) await store.saveAccount(userId, { premium: p });
+    },
+    [applyPremium],
+  );
+
+  // Keyed on the account id rather than the session object: editing a profile
+  // makes a new session object, and that is no reason to re-ask about billing.
+  const accountId = session?.user.id ?? null;
+
+  /**
+   * Catches up with the server once the app is up.
+   *
+   * Startup itself is deliberately offline — waiting on a slow network before
+   * the first screen would look like a hang — so this runs just after, and
+   * covers a subscription that lapsed, was cancelled on another device, or was
+   * paid for while the app was closed.
+   */
+  useEffect(() => {
+    if (!ready || !accountId) return;
+    let cancelled = false;
+    void refreshEntitlement(subscriberFor(sessionRef.current)).then((p) => {
+      if (!cancelled) void applyAndSavePremium(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, accountId, applyAndSavePremium]);
+
+  // Razorpay Checkout returns through a deep link, which is a cue to re-verify
+  // with the server — never proof of payment in itself.
   useEffect(() => {
     let dispose: (() => void) | null = null;
-    void registerDeepLinks(applyPremium).then((d) => {
+    void registerDeepLinks(
+      (p) => void applyAndSavePremium(p),
+      async () =>
+        subscriberFor(sessionRef.current)?.id ?? (await store.getSubscriberId()),
+    ).then((d) => {
       dispose = d;
     });
     return () => dispose?.();
-  }, [applyPremium]);
+  }, [applyAndSavePremium]);
 
   /**
    * Delivers nudges that come due while the app is open.
@@ -297,13 +359,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Nudge is a paid app, so entitlement is re-checked on every resume
         // rather than only at launch — otherwise a subscription that lapses
         // mid-session keeps working until the app is restarted.
-        void checkSubscriptionStatus().then(applyPremium);
+        void refreshEntitlement(subscriberFor(sessionRef.current)).then(
+          (p) => void applyAndSavePremium(p),
+        );
       });
     })();
     return () => {
       void handle?.remove();
     };
-  }, [syncFromSystem]);
+  }, [syncFromSystem, applyAndSavePremium]);
 
   const persist = useCallback(
     async (next: Settings, reschedule: boolean) => {
@@ -392,24 +456,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const buyPremium = useCallback(async () => {
     try {
-      const p = await unlockPremium();
-      applyPremium(p);
-      const userId = sessionRef.current?.user.id;
-      if (userId) await store.saveAccount(userId, { premium: p });
+      const p = await unlockPremium(subscriberFor(sessionRef.current));
+      await applyAndSavePremium(p);
       return isPremiumActive(p);
     } catch (err) {
       console.warn('[nudge] purchase failed', err);
       return false;
     }
-  }, [applyPremium]);
+  }, [applyAndSavePremium]);
 
   const restore = useCallback(async () => {
-    const p = await restorePurchases();
-    applyPremium(p);
-    const userId = sessionRef.current?.user.id;
-    if (userId) await store.saveAccount(userId, { premium: p });
+    const p = await restorePurchases(subscriberFor(sessionRef.current));
+    await applyAndSavePremium(p);
     return isPremiumActive(p);
-  }, [applyPremium]);
+  }, [applyAndSavePremium]);
+
+  /**
+   * Cancels at the end of the paid cycle. Entitlement is deliberately left
+   * alone: the customer keeps the month they have already paid for, and the
+   * `subscription.cancelled` webhook closes it out when it actually lapses.
+   */
+  const cancelSubscription = useCallback(async () => {
+    const ok = await cancelBilling(subscriberFor(sessionRef.current));
+    if (ok) {
+      const p = await refreshEntitlement(subscriberFor(sessionRef.current));
+      await applyAndSavePremium(p);
+    }
+    return ok;
+  }, [applyAndSavePremium]);
 
   const persistSession = useCallback(async (next: AuthSession) => {
     await sessionStore.set(next);
@@ -534,6 +608,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       completeOnboarding,
       buyPremium,
       restore,
+      cancelSubscription,
       showNudge: setActiveNudge,
       buzz,
     }),
@@ -543,6 +618,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       requeueNext, nudgeMeNow, chooseNudge,
       signOut, updateSettings, setEnabled, selectPersona,
       toggleCategory, askPermission, completeOnboarding, buyPremium, restore,
+      cancelSubscription,
       buzz,
     ],
   );

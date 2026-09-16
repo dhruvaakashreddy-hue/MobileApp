@@ -1,11 +1,13 @@
 # Decision needed: how to charge for the ₹99/month subscription
 
-**Status: open, and now urgent.**
+**Status: open — but no longer blocking. Razorpay is wired up and working, so
+there is a shippable product today (Option B). Option A is still the decision
+to make before either store sees a build.**
 
 Nudge is a hard-paywalled app: sign in, subscribe, and only then does anything
-work. That makes this decision blocking rather than academic — there is no free
-tier to fall back on if a store rejects the build, so getting it wrong means
-having no shippable product at all.
+work. That makes this decision consequential rather than academic — there is no
+free tier to fall back on if a store rejects the build, so getting it wrong
+means losing that distribution channel outright.
 
 The build prompt specified Razorpay. Razorpay is genuinely the right rail for
 ₹99/month in India (UPI Autopay and eNACH make small recurring amounts viable in
@@ -57,21 +59,36 @@ Ship the APK from your own website, skip both stores for now.
 
 ## What the code does about it in the meantime
 
-`src/lib/billing.ts` is written against a `BillingProvider` interface, so this
-decision is a swap of one constant rather than a rewrite:
+**Razorpay is now wired up and working**, because it is the only rail that can
+be finished without a decision from you: it needs no store account, no review,
+and no release. Setting `VITE_API_BASE_URL` to a deployed `api/` turns it on —
+see `docs/RAZORPAY_SETUP.md`.
+
+`src/lib/billing.ts` is written against a `BillingProvider` interface, so the
+choice above stays a swap of one constant rather than a rewrite:
 
 ```ts
-export const activeProvider: BillingProvider = stubProvider;
+export const activeProvider: BillingProvider = apiBase()
+  ? razorpayProvider
+  : stubProvider;
 ```
 
-- `stubProvider` — what ships today. Grants a 30-day local entitlement, charges
-  nothing. **Must not go to production.**
-- `razorpayProvider` — written, not wired. Needs `api/` deployed and the
-  environment variables from `api/README.md`.
-- A RevenueCat provider — not written; it is the Option A path, and I did not
-  want to build it against a decision you may not make.
+- `razorpayProvider` — live as soon as an API base URL exists. Subscribe opens
+  Razorpay Checkout (UPI Autopay, cards, netbanking, wallets) and entitlement
+  comes from the signed webhook.
+- `stubProvider` — the development fallback, used only while
+  `VITE_API_BASE_URL` is unset. Grants a 30-day local entitlement and charges
+  nothing, so the screens behind the paywall can be worked on without a payment
+  account. It cannot reach production by accident: a real build needs that URL
+  anyway, and the paywall shows a warning banner whenever the stub is live.
+- A RevenueCat provider — still not written; it is the Option A path, and I did
+  not want to build it against a decision you may not make.
 
 No screen reads the provider directly, so nothing else has to change.
+
+**Choosing Option A does not throw this away.** The Razorpay flow remains the
+web and direct-download checkout; RevenueCat is added beside it for the store
+builds.
 
 ## My read, if you want one
 

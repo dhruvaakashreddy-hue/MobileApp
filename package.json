@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "api": "node --env-file-if-exists=.env api/server.ts",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --test \"src/**/*.test.ts\"",
+    "test": "node --test \"src/**/*.test.ts\" \"api/**/*.test.ts\"",
     "sounds": "node scripts/gen-sounds.mjs"
   },
   "dependencies": {

@@ -1,6 +1,7 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { Capacitor } from '@capacitor/core';
+import { isNative } from './platform';
 import type { Persona } from '../types';
 import { getPersona } from '../data/personas';
 import { computeNextFireTime, plannedCount } from './scheduling';
@@ -41,9 +42,8 @@ export interface NudgePayload {
   chaos: { id: string; text: string };
 }
 
-export function isNative(): boolean {
-  return Capacitor.isNativePlatform();
-}
+// Re-exported so the many callers that reach for it here keep working.
+export { isNative };
 
 /** Android needs a channel per (persona, sound-on/off) pair — a channel's sound is fixed at creation. */
 function channelId(persona: Persona, soundEnabled: boolean): string {

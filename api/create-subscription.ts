@@ -1,90 +1,108 @@
 /**
  * POST /create-subscription
  *
- * Creates a Razorpay subscription for the ₹99/month plan and hands the app back
- * a hosted checkout URL. The key secret stays here, server-side; the app never
- * sees it.
+ * Body: { subscriberId, phoneNumber?, name?, email? }
+ * Returns: { subscriptionId, checkoutUrl }
  *
- * TODO: not wired up. Set the environment variables listed in api/README.md and
- * replace the in-memory store before deploying.
+ * Creates the Razorpay subscription and hands the app a URL to open. The app
+ * opens that URL, the customer pays with UPI / card / netbanking / wallet, and
+ * entitlement is granted later by the signed webhook — never by the client.
  */
 
-import { subscriptions } from './_store';
+import {
+  handledPreflight, jsonBody, type ApiRequest, type ApiResponse,
+} from './_http.ts';
+import { entitlementStore } from './_store.ts';
+import { createSubscription, readConfig, RazorpayError } from './_razorpay.ts';
 
-interface Req {
-  method?: string;
-  body?: { deviceId?: string };
+interface Body {
+  subscriberId?: string;
+  phoneNumber?: string;
+  name?: string;
+  email?: string;
 }
-interface Res {
-  status: (code: number) => Res;
-  json: (body: unknown) => void;
-}
 
-const RAZORPAY_API = 'https://api.razorpay.com/v1';
-
-export default async function handler(req: Req, res: Res): Promise<void> {
+export default async function handler(
+  req: ApiRequest,
+  res: ApiResponse,
+): Promise<void> {
+  if (handledPreflight(req, res)) return;
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
 
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  const planId = process.env.RAZORPAY_PLAN_ID;
-
-  if (!keyId || !keySecret || !planId) {
-    res.status(500).json({
-      error: 'Razorpay is not configured. See api/README.md.',
-    });
+  const cfg = readConfig();
+  if (!cfg) {
+    res.status(500).json({ error: 'Razorpay is not configured. See api/README.md.' });
     return;
   }
 
-  const deviceId = req.body?.deviceId;
-  if (!deviceId) {
-    res.status(400).json({ error: 'deviceId is required' });
+  const body = jsonBody<Body>(req) ?? {};
+  const subscriberId = body.subscriberId?.trim();
+  if (!subscriberId) {
+    res.status(400).json({ error: 'subscriberId is required' });
     return;
   }
 
-  const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+  const store = entitlementStore();
 
   try {
-    const response = await fetch(`${RAZORPAY_API}/subscriptions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        plan_id: planId,
-        // UPI Autopay / eNACH mandates run monthly; 120 keeps the mandate
-        // alive for ten years, which is effectively "until cancelled".
-        total_count: 120,
-        customer_notify: 1,
-        // Lets the webhook tie a payment back to the device that started it.
-        notes: { deviceId },
-      }),
-    });
-
-    if (!response.ok) {
-      const detail = await response.text();
-      res.status(502).json({ error: 'Razorpay rejected the request', detail });
+    // Reuse a subscription that is still awaiting payment rather than leaving
+    // a trail of abandoned ones every time someone taps Subscribe twice.
+    const existing = await store.get(subscriberId);
+    if (existing && !existing.active) {
+      res.status(200).json({
+        subscriptionId: existing.subscriptionId,
+        checkoutUrl: checkoutUrl(req, existing.subscriptionId, body),
+        reused: true,
+      });
       return;
     }
 
-    const sub = (await response.json()) as {
-      id: string;
-      short_url: string;
-      status: string;
-    };
+    const sub = await createSubscription(cfg, { subscriberId });
 
-    subscriptions.set(deviceId, {
+    await store.set(subscriberId, {
       subscriptionId: sub.id,
-      active: false, // only the verified webhook may flip this to true
+      // Only the signature-verified webhook may flip this to true.
+      active: false,
       expiresAt: null,
+      lastEvent: 'created',
     });
 
-    res.status(200).json({ subscriptionId: sub.id, shortUrl: sub.short_url });
+    res.status(200).json({
+      subscriptionId: sub.id,
+      checkoutUrl: checkoutUrl(req, sub.id, body),
+      // Razorpay's own hosted page, as a fallback if our checkout page is
+      // unreachable for any reason.
+      hostedUrl: sub.short_url,
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Could not reach Razorpay', detail: String(err) });
+    if (err instanceof RazorpayError) {
+      console.error('[nudge] razorpay rejected create-subscription', err.detail);
+      res.status(502).json({ error: 'Razorpay rejected the request' });
+      return;
+    }
+    console.error('[nudge] create-subscription failed', err);
+    res.status(500).json({ error: 'Could not reach Razorpay' });
   }
+}
+
+/** Our own checkout page, which knows how to send the customer back to the app. */
+function checkoutUrl(req: ApiRequest, subscriptionId: string, body: Body): string {
+  const base =
+    process.env.PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? inferBase(req);
+  const params = new URLSearchParams({ subscriptionId });
+  if (body.phoneNumber) params.set('contact', body.phoneNumber);
+  if (body.name) params.set('name', body.name);
+  if (body.email) params.set('email', body.email);
+  return `${base}/checkout?${params.toString()}`;
+}
+
+function inferBase(req: ApiRequest): string {
+  const host = req.headers['x-forwarded-host'] ?? req.headers.host;
+  const proto = req.headers['x-forwarded-proto'] ?? 'https';
+  const h = Array.isArray(host) ? host[0] : host;
+  const p = Array.isArray(proto) ? proto[0] : proto;
+  return `${p}://${h ?? 'localhost'}`;
 }

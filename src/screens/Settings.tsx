@@ -9,7 +9,9 @@ import { ActiveHoursPicker } from '../components/ActiveHoursPicker';
 import {
   ALL_CATEGORIES, CATEGORY_BLURBS, CATEGORY_EMOJI, CATEGORY_LABELS,
 } from '../data/personas';
-import { formatExpiry, PRICE_LABEL, PRICE_PERIOD } from '../lib/billing';
+import {
+  billingIsLive, formatExpiry, PRICE_LABEL, PRICE_PERIOD,
+} from '../lib/billing';
 import { isNative } from '../lib/notifications';
 import { IntervalPicker } from '../components/IntervalPicker';
 import { formatE164ForDisplay } from '../lib/auth';
@@ -18,10 +20,12 @@ import { Avatar } from '../components/Avatar';
 export function Settings() {
   const {
     settings, persona, premium, premiumActive, session,
-    updateSettings, toggleCategory, restore, buzz, signOut,
+    updateSettings, toggleCategory, restore, cancelSubscription, buzz, signOut,
   } = useApp();
   const navigate = useNavigate();
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null);
+  const [cancelState, setCancelState] = useState<'idle' | 'confirm' | 'busy'>('idle');
+  const [cancelMsg, setCancelMsg] = useState<string | null>(null);
 
   const onRestore = async () => {
     buzz();
@@ -31,6 +35,19 @@ export function Settings() {
       ok
         ? 'Subscription restored.'
         : 'No active subscription found for this account.',
+    );
+  };
+
+  const onCancel = async () => {
+    buzz();
+    setCancelState('busy');
+    setCancelMsg(null);
+    const ok = await cancelSubscription();
+    setCancelState('idle');
+    setCancelMsg(
+      ok
+        ? `Cancelled. You keep access until ${formatExpiry(premium) ?? 'the end of this period'}.`
+        : "That didn't work. Try again, or cancel from your payment app.",
     );
   };
 
@@ -226,11 +243,57 @@ export function Settings() {
           </p>
         )}
 
-        {/* Cancelling happens wherever the mandate lives, not in the app —
-            saying so avoids a support ticket asking where the button is. */}
+        {/* "Cancel anytime" is promised on the paywall, so it has to be a
+            button here rather than an instruction to email support. */}
+        {premiumActive && billingIsLive() && (
+          <div className="mt-3 border-t border-white/10 pt-3">
+            {cancelState === 'confirm' ? (
+              <>
+                <p className="text-[13px] leading-snug text-white/55">
+                  Cancel your subscription? Nudges keep coming until{' '}
+                  {formatExpiry(premium) ?? 'the end of this period'}, then stop.
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={() => {
+                      buzz();
+                      setCancelState('idle');
+                    }}
+                    className="tap flex-1 rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-semibold transition active:bg-white/15"
+                  >
+                    Keep it
+                  </button>
+                  <button
+                    onClick={onCancel}
+                    className="tap flex-1 rounded-2xl bg-rose-500/15 px-4 py-2.5 text-sm font-semibold text-rose-200 transition active:bg-rose-500/25"
+                  >
+                    Yes, cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  buzz();
+                  setCancelState('confirm');
+                }}
+                disabled={cancelState === 'busy'}
+                className="tap w-full rounded-2xl px-4 text-[13px] font-semibold text-white/40 transition active:bg-white/5 disabled:opacity-40"
+              >
+                {cancelState === 'busy' ? 'Cancelling…' : 'Cancel subscription'}
+              </button>
+            )}
+            {cancelMsg && (
+              <p className="mt-2 text-center text-[13px] text-white/50" role="status">
+                {cancelMsg}
+              </p>
+            )}
+          </div>
+        )}
+
         <p className="mt-3 border-t border-white/10 pt-3 text-[12px] leading-snug text-white/35">
-          Cancel anytime from your payment app or by contacting support. You
-          keep access until the end of the period you have paid for.
+          Paid monthly by UPI Autopay or card. You keep access until the end of
+          the period you have paid for.
         </p>
       </Card>
 

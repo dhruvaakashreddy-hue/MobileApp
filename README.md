@@ -206,13 +206,14 @@ src/
     scheduling.ts      pure time maths (no side effects)
     notifications.ts   scheduling, channels, listeners, reconciliation
     storage.ts         typed Preferences wrapper
-    billing.ts         subscription — stubbed, see docs/BILLING_DECISION.md
-    deeplink.ts        Razorpay return trip
+    platform.ts        native vs web
+    billing.ts         Razorpay subscription — see docs/RAZORPAY_SETUP.md
+    deeplink.ts        the return trip from checkout
   state/AppContext.tsx single source of truth
   screens/             Login, ProfileSetup, Home, Personas, Settings,
                        Paywall, Onboarding
   components/          UI primitives + the animated nudge card
-api/                   minimal Razorpay server (not deployed)
+api/                   Razorpay subscription server (`npm run api`)
 docs/                  the decisions and manual steps left for you
 ```
 
@@ -220,11 +221,12 @@ docs/                  the decisions and manual steps left for you
 
 ## ⚠️ Before you ship
 
-**Billing is stubbed.** `stubProvider` in `src/lib/billing.ts` grants a 30-day
-subscription for free, locally, to anyone who taps the button. The paywall shows
-a visible developer-build warning while it's active. Since the whole app sits
-behind that button, this is the single most important thing to swap before
-release.
+**Billing works, but it needs your Razorpay account.** Subscribe opens Razorpay
+Checkout — UPI Autopay, cards, netbanking, wallets — as soon as
+`VITE_API_BASE_URL` points at a deployed `api/`. Until then the paywall falls
+back to a development stub that unlocks for free and says so in a visible
+banner. **`docs/RAZORPAY_SETUP.md`** is the hour it takes to switch on,
+including test cards.
 
 **Sign-in is stubbed.** `src/lib/auth.ts` sends no SMS and accepts the code
 `123456` for any number that passes format validation. The OTP screen shows a developer-build banner while
@@ -233,9 +235,11 @@ that bite at launch: account deletion is required by both stores once you have
 login, nothing syncs across devices yet, and "collects nothing" stops being true
 in your privacy labels.
 
-**There's an open decision about how to charge at all** — Apple and Google
-require their own billing for in-app digital subscriptions, which rules out
-Razorpay inside a store build. Both options are laid out in
+**There's still an open decision about the stores** — Apple and Google require
+their own billing for in-app digital subscriptions, which rules out Razorpay
+inside a store build. The Razorpay flow is ready for direct Android
+distribution and the web; for the App Store and Play you'd add RevenueCat
+behind the same interface. Both options are laid out in
 **`docs/BILLING_DECISION.md`**; I deliberately didn't pick one.
 
 Everything else outstanding is in **`docs/MANUAL_SETUP.md`** — Razorpay KYC,
@@ -248,7 +252,8 @@ real notification sounds, icons, and the on-device test checklist.
 | Command                       | Does                                       |
 | ----------------------------- | ------------------------------------------ |
 | `npm run dev`                 | Vite dev server                            |
+| `npm run api`                 | Subscription API on :5060 (see api/README) |
 | `npm run build`               | Typecheck + production build               |
-| `npm run test`                | Scheduling logic tests                     |
+| `npm run test`                | Logic, billing and webhook tests           |
 | `npm run lint`                | oxlint                                     |
 | `node scripts/gen-sounds.mjs` | Regenerate placeholder notification sounds |

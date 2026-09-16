@@ -88,6 +88,7 @@ const KEYS = {
   creditedThrough: 'nudge.creditedThrough',
   queue: 'nudge.queue',
   accounts: 'nudge.accounts',
+  subscriberId: 'nudge.subscriberId',
 } as const;
 
 /**
@@ -217,6 +218,19 @@ export const store = {
 
   getPremium: () => readJSON<Premium>(KEYS.premium, DEFAULT_PREMIUM),
   setPremium: (p: Premium) => writeJSON(KEYS.premium, p),
+
+  /**
+   * A stable id for this install, used as the billing subscriber id when there
+   * is no signed-in account to key the subscription on. Written once and then
+   * left alone: change it and the subscription it paid for becomes unreachable.
+   */
+  async getSubscriberId(): Promise<string> {
+    const { value } = await Preferences.get({ key: KEYS.subscriberId });
+    if (value) return value;
+    const fresh = `install-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+    await Preferences.set({ key: KEYS.subscriberId, value: fresh });
+    return fresh;
+  },
 
   async getLastLineId(): Promise<string | null> {
     const { value } = await Preferences.get({ key: KEYS.lastLineId });
