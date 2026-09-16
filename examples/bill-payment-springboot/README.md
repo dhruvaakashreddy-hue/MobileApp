@@ -15,6 +15,10 @@ keys later and the same app talks to Razorpay.
 
 ## Part 1 — Run it in VS Code
 
+> **First time setting up Java or VS Code?** Follow **[SETUP.md](SETUP.md)**
+> instead — same steps, but with the exact install commands, a check after every
+> step, and the mistakes worth avoiding. Come back here afterwards.
+
 ### Step 1. Install the two things you need
 
 | | Check it worked |
