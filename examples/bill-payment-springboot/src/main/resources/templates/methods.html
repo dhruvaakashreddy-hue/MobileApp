@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How would you like to pay?</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<main class="app">
+  <a class="back" th:href="@{/}" href="/">← Bills</a>
+
+  <div class="sheet">
+    <span class="sheet-grabber" aria-hidden="true"></span>
+    <h1 class="sheet-title">How would you like to pay?</h1>
+    <p class="sheet-sub">
+      <span th:text="${bill.label}">Electricity bill</span> ·
+      <strong th:text="'₹' + ${bill.formattedAmount}">₹1,840</strong>
+    </p>
+
+    <!--
+      One form per option. Each posts the method to POST /pay/{billId}, which
+      creates the order and redirects to the payment page.
+
+      Notice what is NOT in this form: the amount. The browser sends a bill id
+      and a method, nothing else. The price is looked up on the server, so
+      editing this HTML in devtools cannot change what is charged.
+    -->
+    <div class="method-list">
+      <form th:each="m : ${methods}"
+            th:action="@{/pay/{id}(id=${bill.id})}"
+            method="post">
+        <input type="hidden" name="method" th:value="${m.code}">
+        <button class="method" type="submit">
+          <span class="method-icon" aria-hidden="true" th:text="${m.icon}">📲</span>
+          <span class="method-text">
+            <span class="method-label" th:text="${m.label}">UPI</span>
+            <span class="method-hint" th:text="${m.hint}">GPay, PhonePe, Paytm</span>
+          </span>
+          <span class="method-arrow" aria-hidden="true">›</span>
+        </button>
+      </form>
+    </div>
+
+    <a class="sheet-cancel" th:href="@{/}" href="/">Cancel</a>
+  </div>
+</main>
+</body>
+</html>

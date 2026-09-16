@@ -1,0 +1,13 @@
+# Copy this file to `application-local.yml` (same folder) and paste your
+# Razorpay TEST keys, then run with the "local" profile:
+#
+#     mvn spring-boot:run -Dspring-boot.run.profiles=local
+#
+# application-local.yml is gitignored. Never commit the key secret — anyone who
+# has it can create and refund payments on your account.
+
+razorpay:
+  key-id: rzp_test_xxxxxxxxxxxxx
+  key-secret: xxxxxxxxxxxxxxxxxxxxxxxx
+  # A DIFFERENT secret, chosen by you in Dashboard -> Settings -> Webhooks.
+  webhook-secret: ""

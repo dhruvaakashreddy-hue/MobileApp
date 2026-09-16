@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bills due — BillMate</title>
+  <!-- @{...} is Thymeleaf's URL syntax. It prefixes the context path, so the
+       link keeps working if the app is later deployed under /billmate. -->
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<main class="app">
+  <header class="head">
+    <!-- th:text replaces the element's content at render time. The text that
+         is already there shows when you open the file directly in a browser,
+         which makes templates easy to design offline. -->
+    <p class="eyebrow" th:text="${companyName}">BillMate</p>
+    <h1>Due this week</h1>
+  </header>
+
+  <!-- th:if renders the element only when the condition is true. -->
+  <p class="warn" th:unless="${live}">
+    <strong>Simulated mode.</strong> No Razorpay keys are set, so payments are
+    faked — but the signature check and every screen are the real ones. Set
+    <code>RAZORPAY_KEY_ID</code> and <code>RAZORPAY_KEY_SECRET</code> to use
+    Razorpay test mode.
+  </p>
+
+  <ul class="bills">
+    <!-- th:each is the loop. It repeats this <li> once per bill. -->
+    <li class="bill" th:each="bill : ${bills}">
+      <div class="bill-info">
+        <span class="bill-label" th:text="${bill.label}">Electricity bill</span>
+        <span class="bill-due" th:text="${bill.dueIn}">Due in 2 days</span>
+      </div>
+      <div class="bill-right">
+        <span class="bill-amount" th:text="'₹' + ${bill.formattedAmount}">₹1,840</span>
+        <!-- Step 1 of the flow: go to the method sheet for this bill. -->
+        <a class="primary small"
+           th:href="@{/pay/{id}(id=${bill.id})}"
+           href="/pay/electricity">Pay now</a>
+      </div>
+    </li>
+  </ul>
+
+  <p class="foot">This is a demo. In simulated mode nothing is charged.</p>
+</main>
+</body>
+</html>

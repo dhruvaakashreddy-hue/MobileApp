@@ -1,0 +1,14 @@
+target/
+*.class
+
+# Your real keys. Never commit these.
+.env
+src/main/resources/application-local.yml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/

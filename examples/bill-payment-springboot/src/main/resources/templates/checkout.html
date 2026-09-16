@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paying — BillMate</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <!--
+    Razorpay Checkout must be loaded from their CDN. It cannot be bundled or
+    self-hosted: they update it, and a stale copy breaks payments.
+    Skipped entirely in simulated mode, where there is nothing to talk to.
+  -->
+  <script th:if="${live}" src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+<main class="app">
+  <!--
+    The values JavaScript needs, passed as data- attributes.
+
+    Building a <script> block with th:text and interpolating values into it is
+    the usual way this is done and it is a mistake: a quote inside any of those
+    values ends the string and the rest executes. Attributes are escaped by
+    Thymeleaf, and app.js reads them with dataset, so nothing is ever parsed as
+    code.
+  -->
+  <div id="checkout"
+       th:data-order-id="${attempt.orderId}"
+       th:data-key-id="${keyId}"
+       th:data-amount="${attempt.amountInPaise}"
+       th:data-currency="${attempt.currency}"
+       th:data-method="${attempt.method.code}"
+       th:data-block-name="${attempt.method.checkoutBlockName}"
+       th:data-company="${companyName}"
+       th:data-description="${attempt.billLabel}"
+       th:data-live="${live}">
+
+    <div class="pay-card">
+      <p class="eyebrow">Paying by <span th:text="${attempt.method.label}">UPI</span></p>
+      <h1 class="pay-amount" th:text="'₹' + ${attempt.formattedAmount}">₹1,840</h1>
+      <p class="pay-bill" th:text="${attempt.billLabel}">Electricity bill</p>
+      <p class="pay-order">Order <code th:text="${attempt.orderId}">order_123</code></p>
+
+      <!-- Filled in by app.js: status text, errors, the retry button. -->
+      <p class="pay-status" id="status">Opening the payment window…</p>
+      <div id="actions" class="pay-actions"></div>
+
+      <!-- Simulated mode gets its own buttons instead of Razorpay's window. -->
+      <div class="sim" th:unless="${live}">
+        <p class="sim-note">
+          Simulated payment — no keys are set, so this signs a fake payment
+          locally and sends it through the real verification endpoint.
+        </p>
+      </div>
+    </div>
+
+    <a class="back" th:href="@{/pay/{id}(id=${attempt.billId})}" href="/">← Choose another method</a>
+  </div>
+</main>
+
+<script th:src="@{/js/checkout.js}"></script>
+</body>
+</html>

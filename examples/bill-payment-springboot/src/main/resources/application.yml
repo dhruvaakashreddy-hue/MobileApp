@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: bill-payment-springboot
+  thymeleaf:
+    # Off in development so editing a template shows up on refresh, without a
+    # restart. Spring Boot turns it back on in a packaged jar.
+    cache: false
+
+server:
+  port: 8080
+
+razorpay:
+  # Read from the environment. The ":" gives an empty default, which is what
+  # puts the app in simulated mode on a fresh clone.
+  #
+  # NEVER paste the secret into this file — it is committed to git. Set it as an
+  # environment variable, or put it in application-local.yml, which is gitignored.
+  key-id: ${RAZORPAY_KEY_ID:}
+  key-secret: ${RAZORPAY_KEY_SECRET:}
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  api-base-url: https://api.razorpay.com/v1
+  currency: INR
+  company-name: BillMate
+
+logging:
+  level:
+    com.billmate.payments: DEBUG

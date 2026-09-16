@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment successful — BillMate</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<!--
+  This page is reached only when the stored attempt says PAID, and that flag is
+  set in exactly one place: after the server recomputed the HMAC signature.
+  Typing this URL for an unpaid order redirects back to the bill list.
+-->
+<main class="app success">
+  <div class="success-tick" aria-hidden="true">✓</div>
+  <h1 class="success-title">Payment successful</h1>
+  <p class="success-sub">
+    <span th:text="${attempt.billLabel}">Electricity bill</span> is paid.
+    A receipt is on its way.
+  </p>
+
+  <dl class="receipt">
+    <div>
+      <dt>Amount paid</dt>
+      <dd th:text="'₹' + ${attempt.formattedAmount}">₹1,840</dd>
+    </div>
+    <div>
+      <dt>Paid by</dt>
+      <dd th:text="${attempt.method.label}">UPI</dd>
+    </div>
+    <div>
+      <dt>Payment ID</dt>
+      <dd class="mono" th:text="${attempt.paymentId}">pay_abc123</dd>
+    </div>
+    <div>
+      <dt>Order ID</dt>
+      <dd class="mono" th:text="${attempt.orderId}">order_abc123</dd>
+    </div>
+    <div>
+      <dt>Status</dt>
+      <dd class="ok">Signature verified by the server</dd>
+    </div>
+  </dl>
+
+  <a class="primary" th:href="@{/}" href="/">Back to reminders</a>
+</main>
+</body>
+</html>

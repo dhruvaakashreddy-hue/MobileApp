@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Something went wrong — BillMate</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<main class="app success">
+  <div class="error-mark" aria-hidden="true">!</div>
+  <h1 class="success-title">That did not work</h1>
+  <p class="success-sub" th:text="${message} ?: 'Something went wrong.'">
+    Something went wrong.
+  </p>
+  <a class="primary" th:href="@{/}" href="/">Back to reminders</a>
+</main>
+</body>
+</html>
