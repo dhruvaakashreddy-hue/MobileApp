@@ -151,9 +151,9 @@ async function getDeviceId(): Promise<string> {
 // TODO: switch to `razorpayProvider` (web/Android-direct) or add a RevenueCat
 // provider (App Store / Play) once the decision in docs/BILLING_DECISION.md is
 // made. Everything else in the app reads from here.
-export const activeProvider: BillingProvider = stubProvider;
+export const activeProvider: BillingProvider = razorpayProvider;
 
-void razorpayProvider; // referenced above; kept wired for the switch-over.
+void stubProvider; // referenced above; kept wired for the switch-over.
 
 export async function checkSubscriptionStatus(): Promise<Premium> {
   const premium = await store.getPremium();

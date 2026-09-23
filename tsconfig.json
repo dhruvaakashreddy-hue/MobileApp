@@ -10,5 +10,7 @@
     {
       "path": "./tsconfig.test.json"
     }
-  ]
+  ],
+  "compilerOptions": {},
+  "extends": "expo/tsconfig.base"
 }

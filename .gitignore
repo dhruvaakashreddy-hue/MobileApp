@@ -41,3 +41,4 @@ dist-ssr
 /ios/App/App/public
 /ios/App/output
 /ios/DerivedData
+.vercel

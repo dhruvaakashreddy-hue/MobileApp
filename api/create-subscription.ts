@@ -1,48 +1,48 @@
 /**
- * POST /create-subscription
+ * POST /api/create-subscription
  *
- * Creates a Razorpay subscription for the ₹99/month plan and hands the app back
- * a hosted checkout URL. The key secret stays here, server-side; the app never
+ * Creates a Razorpay subscription for the monthly plan and hands the app back a
+ * hosted checkout URL. The key secret stays here, server-side; the app never
  * sees it.
  *
- * TODO: not wired up. Set the environment variables listed in api/README.md and
- * replace the in-memory store before deploying.
+ * ⚠️ UNAUTHENTICATED. Anyone can POST any userId and get a checkout link for
+ * it. That is tolerable only while auth is a stub, because the worst case is a
+ * stranger paying for someone else's account. Once real auth lands, require a
+ * verified token here and take the userId from the token, never from the body.
  */
 
-import { subscriptions } from './_store';
-
-interface Req {
-  method?: string;
-  body?: { deviceId?: string };
-}
-interface Res {
-  status: (code: number) => Res;
-  json: (body: unknown) => void;
-}
+import { setEntitlement, storeIsConfigured } from './_store.js';
 
 const RAZORPAY_API = 'https://api.razorpay.com/v1';
 
-export default async function handler(req: Req, res: Res): Promise<void> {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+function json(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
 
+export async function POST(request: Request): Promise<Response> {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
   const planId = process.env.RAZORPAY_PLAN_ID;
 
   if (!keyId || !keySecret || !planId) {
-    res.status(500).json({
-      error: 'Razorpay is not configured. See api/README.md.',
-    });
-    return;
+    return json({ error: 'Razorpay is not configured. See api/README.md.' }, 500);
+  }
+  if (!storeIsConfigured()) {
+    return json({ error: 'Store is not configured. See api/README.md.' }, 500);
   }
 
-  const deviceId = req.body?.deviceId;
-  if (!deviceId) {
-    res.status(400).json({ error: 'deviceId is required' });
-    return;
+  let userId: string | undefined;
+  try {
+    const body = (await request.json()) as { userId?: string };
+    userId = body.userId;
+  } catch {
+    return json({ error: 'Body must be JSON' }, 400);
+  }
+  if (!userId || typeof userId !== 'string' || userId.length > 128) {
+    return json({ error: 'userId is required' }, 400);
   }
 
   const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
@@ -56,19 +56,18 @@ export default async function handler(req: Req, res: Res): Promise<void> {
       },
       body: JSON.stringify({
         plan_id: planId,
-        // UPI Autopay / eNACH mandates run monthly; 120 keeps the mandate
-        // alive for ten years, which is effectively "until cancelled".
+        // UPI Autopay / eNACH mandates run monthly; 120 keeps the mandate alive
+        // for ten years, which is effectively "until cancelled".
         total_count: 120,
         customer_notify: 1,
-        // Lets the webhook tie a payment back to the device that started it.
-        notes: { deviceId },
+        // Lets the webhook tie a charge back to the account that started it.
+        notes: { userId },
       }),
     });
 
     if (!response.ok) {
       const detail = await response.text();
-      res.status(502).json({ error: 'Razorpay rejected the request', detail });
-      return;
+      return json({ error: 'Razorpay rejected the request', detail }, 502);
     }
 
     const sub = (await response.json()) as {
@@ -77,14 +76,19 @@ export default async function handler(req: Req, res: Res): Promise<void> {
       status: string;
     };
 
-    subscriptions.set(deviceId, {
+    // Recorded inactive. Only the signature-verified webhook may flip this.
+    await setEntitlement(userId, {
       subscriptionId: sub.id,
-      active: false, // only the verified webhook may flip this to true
+      active: false,
       expiresAt: null,
     });
 
-    res.status(200).json({ subscriptionId: sub.id, shortUrl: sub.short_url });
+    return json({ subscriptionId: sub.id, shortUrl: sub.short_url }, 200);
   } catch (err) {
-    res.status(500).json({ error: 'Could not reach Razorpay', detail: String(err) });
+    return json({ error: 'Could not reach Razorpay', detail: String(err) }, 500);
   }
+}
+
+export function GET(): Response {
+  return json({ error: 'Method not allowed' }, 405);
 }

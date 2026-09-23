@@ -1,43 +1,53 @@
 /**
- * GET /subscription-status?deviceId=...
+ * GET /api/subscription-status?userId=...
  *
- * The app's source of truth for entitlement. Only the webhook writes here.
+ * The app's source of truth for entitlement. Only the webhook writes it.
  *
- * TODO: this is unauthenticated — anyone who guesses a device id can read its
- * status. Before production, sign the device id at install time and require
- * that token here.
+ * ⚠️ UNAUTHENTICATED. Anyone who knows a userId can read its status. That is a
+ * privacy leak, not a paywall bypass — nothing here grants access. Fix it with
+ * the same verified token as create-subscription once real auth lands.
  */
 
-import { subscriptions } from './_store';
+import { getEntitlement, storeIsConfigured } from './_store.js';
 
-interface Req {
-  method?: string;
-  query?: Record<string, string | string[] | undefined>;
-}
-interface Res {
-  status: (code: number) => Res;
-  json: (body: unknown) => void;
+function json(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      // Entitlement changes the moment a webhook lands; a cached 200 would
+      // keep a cancelled subscriber unlocked or a new one locked out.
+      'Cache-Control': 'no-store',
+    },
+  });
 }
 
-export default function handler(req: Req, res: Res): void {
-  if (req.method !== 'GET') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
+export async function GET(request: Request): Promise<Response> {
+  if (!storeIsConfigured()) {
+    return json({ error: 'Store is not configured' }, 500);
   }
 
-  const deviceId = req.query?.deviceId;
-  if (typeof deviceId !== 'string') {
-    res.status(400).json({ error: 'deviceId is required' });
-    return;
+  const userId = new URL(request.url).searchParams.get('userId');
+  if (!userId) return json({ error: 'userId is required' }, 400);
+
+  let record;
+  try {
+    record = await getEntitlement(userId);
+  } catch (err) {
+    // Fail closed on the flag, but say so, so the client can keep trusting its
+    // last known good state rather than locking a paying user out on a blip.
+    return json({ error: 'Store unavailable', detail: String(err) }, 503);
   }
 
-  const record = subscriptions.get(deviceId);
   const active =
     !!record?.active && !!record.expiresAt && record.expiresAt > Date.now();
 
-  res.status(200).json({
-    active,
-    expiresAt: active ? record!.expiresAt : null,
-    subscriptionId: record?.subscriptionId ?? null,
-  });
+  return json(
+    {
+      active,
+      expiresAt: active ? record!.expiresAt : null,
+      subscriptionId: record?.subscriptionId ?? null,
+    },
+    200,
+  );
 }
