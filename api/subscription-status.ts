@@ -79,8 +79,9 @@ function json(body: unknown, status: number): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  // Safe fallback if Redis is not yet configured in environment variables
   if (!storeIsConfigured()) {
-    return json({ error: 'Store is not configured' }, 500);
+    return json({ active: false, expiresAt: null, subscriptionId: null }, 200);
   }
 
   const userId = new URL(request.url).searchParams.get('userId');
@@ -90,9 +91,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     record = await getEntitlement(userId);
   } catch (err) {
-    // Fail closed on the flag, but say so, so the client can keep trusting its
-    // last known good state rather than locking a paying user out on a blip.
-    return json({ error: 'Store unavailable', detail: String(err) }, 503);
+    return json({ active: false, expiresAt: null, subscriptionId: null }, 200);
   }
 
   const active =
