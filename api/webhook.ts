@@ -13,25 +13,10 @@
  */
 
 import crypto from 'node:crypto';
-import {
-  claimEvent,
-  getEntitlement,
-  setEntitlement,
-  storeIsConfigured,
-  userIdForSubscription,
-/**
- * Entitlement store.
- *
- * Backed by Upstash Redis over its REST API. Two reasons for REST rather than a
- * client library: every function in api/ is a separate lambda with its own
- * memory, so the store has to be external; and REST needs no dependency and no
- * connection pooling, which is what you want in a serverless function that may
- * cold-start on every request.
- *
- * Keyed by USER id, not device id. A subscription belongs to the account that
- * paid for it — keying on the device loses it on reinstall or a new phone,
- * which becomes a refund request.
- */
+
+// ============================================================================
+// ENTITLEMENT STORE (INLINED)
+// ============================================================================
 
 export interface Entitlement {
   subscriptionId: string;
@@ -120,6 +105,10 @@ export async function claimEvent(eventId: string): Promise<boolean> {
   ]);
   return result === 'OK';
 }
+
+// ============================================================================
+// WEBHOOK HANDLER
+// ============================================================================
 
 const RENEWAL_GRACE_DAYS = 3;
 
