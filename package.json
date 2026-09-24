@@ -29,6 +29,9 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3"
+    "dependencies": {
+  "@upstash/redis": "^1.34.3"
+}
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.2",
