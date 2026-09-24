@@ -8,19 +8,9 @@
  * the same verified token as create-subscription once real auth lands.
  */
 
-/**
- * Entitlement store.
- *
- * Backed by Upstash Redis over its REST API. Two reasons for REST rather than a
- * client library: every function in api/ is a separate lambda with its own
- * memory, so the store has to be external; and REST needs no dependency and no
- * connection pooling, which is what you want in a serverless function that may
- * cold-start on every request.
- *
- * Keyed by USER id, not device id. A subscription belongs to the account that
- * paid for it — keying on the device loses it on reinstall or a new phone,
- * which becomes a refund request.
- */
+// ============================================================================
+// ENTITLEMENT STORE (INLINED)
+// ============================================================================
 
 export interface Entitlement {
   subscriptionId: string;
@@ -59,8 +49,6 @@ async function command(args: (string | number)[]): Promise<unknown> {
 }
 
 const entKey = (userId: string) => `entitlement:${userId}`;
-const eventKey = (eventId: string) => `rzp:event:${eventId}`;
-const subKey = (subscriptionId: string) => `rzp:sub:${subscriptionId}`;
 
 export async function getEntitlement(
   userId: string,
@@ -74,41 +62,9 @@ export async function getEntitlement(
   }
 }
 
-export async function setEntitlement(
-  userId: string,
-  entitlement: Entitlement,
-): Promise<void> {
-  await command(['SET', entKey(userId), JSON.stringify(entitlement)]);
-  // Reverse index: webhook events that arrive without notes can still be
-  // matched back to a user via the subscription id.
-  await command(['SET', subKey(entitlement.subscriptionId), userId]);
-}
-
-export async function userIdForSubscription(
-  subscriptionId: string,
-): Promise<string | null> {
-  const result = await command(['GET', subKey(subscriptionId)]);
-  return typeof result === 'string' ? result : null;
-}
-
-/**
- * Idempotency guard. Razorpay retries on any non-2xx and can deliver the same
- * event more than once even on success, so every event is claimed exactly once.
- * Returns true if this is the first time we've seen the id.
- *
- * SET .. NX is atomic, so two concurrent deliveries cannot both win.
- */
-export async function claimEvent(eventId: string): Promise<boolean> {
-  const result = await command([
-    'SET',
-    eventKey(eventId),
-    '1',
-    'NX',
-    'EX',
-    60 * 60 * 24 * 7,
-  ]);
-  return result === 'OK';
-}
+// ============================================================================
+// ROUTE HANDLER
+// ============================================================================
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -130,7 +86,7 @@ export async function GET(request: Request): Promise<Response> {
   const userId = new URL(request.url).searchParams.get('userId');
   if (!userId) return json({ error: 'userId is required' }, 400);
 
-  let record;
+  let record: Entitlement | null = null;
   try {
     record = await getEntitlement(userId);
   } catch (err) {
