@@ -1,0 +1,5 @@
+{
+  "projectId": "your_project_id",
+  "baseUrl": "http://localhost:54321",
+  "dbUrl": "postgresql://postgres:postgres@localhost:5432/postgres"
+}

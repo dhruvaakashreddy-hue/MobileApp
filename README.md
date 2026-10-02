@@ -1,254 +1,410 @@
-# Nudge 🫡
+# CRUSH - 18+ College Dating App MVP
 
-Random, in-character reminders to sit up, drink water and move — delivered by a
-persona you pick, at times you can't predict.
+> "Your campus. Your crush. Find out if it's mutual."
 
-Cross-platform (Android + iOS) via Capacitor. **Local-first: the nudge engine
-makes no network calls at all**, and all 90 lines ship bundled in the app.
+A modern, privacy-focused dating application exclusively for verified college students aged 18+.
 
-**Nudge is a paid app: ₹99/month.** The profile and the subscription belong to
-the account, not the device — signing out and back in with the same number
-restores both, and a different number on the same phone gets neither.
- Sign in, subscribe, then the app opens —
-there is no free tier and no guest mode, because a subscription needs an
-identity to attach to or it cannot be restored on a new phone. Sign-in and
-payment are the only networked features; everything about your actual day stays
-on the device. See `docs/AUTH_SETUP.md` and `docs/BILLING_DECISION.md`.
+## 🎯 Core Features
 
----
+- **Secret Crush System**: Send anonymous crushes that reveal mutual matches
+- **College Verification**: Verified student profiles with institutional email or ID
+- **Real-Time Chat**: Instant messaging with read receipts
+- **Discovery Matching**: Smart filtering by college, department, interests, and preferences
+- **CRUSH+ Premium**: Unlock advanced features like seeing who crushed you and Incognito Mode
+- **Safety First**: Report, block, and safety popup on every login
+- **Admin Dashboard**: Moderation, verification, analytics, and user management
 
-## Quick start
+## 🏗️ Tech Stack
+
+### Mobile
+- **React Native** + **Expo** - Cross-platform mobile development
+- **Expo Router** - File-based routing
+- **TypeScript** - Type safety
+- **TanStack Query** - Data fetching and caching
+- **Zustand** - Global state management
+- **React Hook Form** + **Zod** - Forms and validation
+
+### Backend
+- **Supabase** - PostgreSQL, Auth, Storage, Realtime, Edge Functions
+- **PostgreSQL** - Database with RLS policies
+- **TypeScript** - Type safety
+
+### Admin
+- **Next.js 14** - Web admin dashboard
+- **Recharts** - Analytics visualization
+- **Tailwind CSS** - Styling
+
+### Payment
+- **Razorpay** - Payment processing (India-focused)
+- **RevenueCat** - Subscription management (future)
+
+## 📁 Project Structure
+
+```
+crush-monorepo/
+├── apps/
+│   ├── mobile/           # React Native + Expo app
+│   │   ├── app/          # Expo Router app directory
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   ├── hooks/
+│   │   │   ├── lib/
+│   │   │   ├── providers/
+│   │   │   ├── screens/
+│   │   │   └── store/
+│   │   ├── app.json      # Expo config
+│   │   └── package.json
+│   └── admin/            # Next.js admin dashboard
+│       ├── app/
+│       ├── components/
+│       ├── lib/
+│       └── package.json
+├── packages/
+│   ├── types/           # Shared TypeScript types
+│   ├── ui/              # Shared UI components
+│   └── config/          # Configuration
+├── supabase/
+│   ├── migrations/      # Database migrations (SQL)
+│   ├── functions/       # Edge functions (TypeScript)
+│   ├── tests/           # RLS and integration tests
+│   └── config.json
+├── docs/                # Documentation
+├── .env.example         # Environment template
+├── tsconfig.json        # Root TypeScript config
+└── package.json         # Root workspace config
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 18+ and npm 9+
+- Supabase account (https://supabase.com)
+- Expo CLI: `npm install -g expo-cli`
+
+### Setup
+
+1. **Clone and install dependencies**
 
 ```bash
 npm install
-npm run dev          # browser preview at localhost:5173
 ```
 
-The browser preview is genuinely useful — every screen works, and because there
-are no OS notifications on web, "Send me one right now" shows the in-app persona
-card directly so you can see the alert without a device.
+2. **Create Supabase project**
 
-### Running on a device
+- Visit https://supabase.com and create a new project
+- Copy your project URL and anon key
+
+3. **Configure environment variables**
 
 ```bash
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+```
+
+4. **Run database migrations**
+
+```bash
+# Visit Supabase console → SQL Editor
+# Run migrations/00001_init.sql, 00002_rls.sql, 00003_functions.sql, 00004_seed.sql
+# In order
+```
+
+5. **Start mobile app**
+
+```bash
+npm run dev:mobile
+```
+
+The app will start on Expo Go (scan QR code).
+
+6. **Start admin dashboard** (in another terminal)
+
+```bash
+npm run dev:admin
+```
+
+Admin dashboard opens at http://localhost:3000
+
+## 🔐 Security & Privacy
+
+### 18+ Age Gate (STRICT)
+- DOB collected at signup (Step 2)
+- Age validated on client and server
+- Users under 18 cannot access the app
+- Age verification cannot be easily edited
+
+### Data Protection
+- Row-Level Security (RLS) on all database tables
+- No exposure of:
+  - Phone numbers
+  - Email addresses
+  - Student ID documents
+  - Exact DOB (only shows age)
+  - Precise GPS location
+- Secure file uploads with signed URLs
+- EXIF metadata stripping for photos
+
+### Authentication
+- Supabase Auth with Phone + OTP
+- Secure token storage (encrypted)
+- Session management with auto-refresh
+- Rate limiting on OTP requests
+
+### Privacy Features
+- Incognito Mode (CRUSH+ only): Hide all details except college name
+- Block and Report functionality
+- Incoming crush privacy: Limited hints only
+- Message encryption in transit
+
+## 💳 Subscription Architecture
+
+### CRUSH+ Premium (₹39/week or ₹129/month)
+
+**Features included:**
+- See who crushed on you
+- Unlimited crushes per day (vs 20 free)
+- Undo Pass
+- Advanced discovery filters
+- Nearby colleges feature
+- Profile Boost (30 minutes visibility)
+- Incognito Mode
+- No ads (future)
+
+**7-Day Free Trial:**
+- Automatically granted on first login
+- Server-side tracking (non-repeatable)
+- Shows remaining days/expiration date
+- Converts to paid or reverts to free
+
+**Payment Processing:**
+- Server-side payment validation (Razorpay)
+- Webhook signature verification
+- Idempotent transaction handling
+- Never store card data in app
+
+**Entitlement Resolution:**
+```
+get_user_entitlements(user_id) → {
+  plan: 'free' | 'weekly' | 'monthly',
+  trial_active: boolean,
+  premium_active: boolean,
+  incognito_allowed: boolean,
+  see_who_crushed_allowed: boolean,
+  nearby_colleges_allowed: boolean,
+  ...
+}
+```
+
+## 🔄 Core Workflows
+
+### Sign Up Flow
+1. Phone login → OTP verification
+2. Age verification (DOB) → Block if under 18
+3. Profile creation (name, gender, interests)
+4. College selection & student verification
+5. Photo upload (min 2, max 5)
+6. Onboarding prompts
+7. Auto-grant 7-day CRUSH+ trial
+8. Show safety popup
+9. Enter Discover screen
+
+### Secret Crush Workflow
+1. User A views User B's profile
+2. User A taps "Crush" button → Crush recorded
+3. User B gets notification: "Someone from your college has a crush on you 👀"
+4. User B sees limited hints (department, year, shared interests)
+5. If User B crushes User A independently:
+   - MUTUAL MATCH created
+   - Both identities revealed
+   - Chat opened automatically
+   - "IT'S MUTUAL 💕" animation shown
+6. If User B doesn't crush back:
+   - Crush expires after 30 days
+   - No notification sent to User A
+
+### Safety & Reporting
+1. User can report from:
+   - Full profile view
+   - Chat screen
+   - Match menu
+2. Report categories: Fake profile, underage, harassment, threats, etc.
+3. Reported user NOT notified who reported them
+4. Underage reports trigger manual review
+5. Admin can warn, suspend, or ban
+
+## 📊 Admin Dashboard
+
+**Features:**
+- User management and verification
+- Report review and moderation
+- College and department management
+- Feature flag configuration
+- Analytics and metrics
+- Subscription monitoring
+- Payment transaction history
+
+**Access:**
+- Next.js app at `/apps/admin`
+- Admin users created via Supabase
+- Role-based access (super_admin, moderator, support)
+
+## 🧪 Testing
+
+### Unit Tests
+```bash
+npm run test
+```
+
+### Integration Tests
+```bash
+cd supabase
+npm run test
+```
+
+### RLS Policy Testing
+Database policies are automatically tested against:
+- User can read own profile only
+- User cannot read other user's private data
+- Blocked users cannot access any data
+- Match members can read messages only in their match
+
+## 📱 Mobile App Configuration
+
+### Permissions (iOS/Android)
+- Camera: Photo uploads
+- Photo Library: Image selection
+- Notifications: Push notifications
+
+### Development Builds
+
+```bash
+# Build for Android
+npm run android
+
+# Build for iOS
+npm run ios
+
+# Web preview
+npm run web
+```
+
+## 🔑 Environment Variables
+
+See `.env.example` for all variables.
+
+**Critical (NEVER commit actual values):**
+- `SUPABASE_SERVICE_ROLE_KEY` - Backend only
+- `RAZORPAY_KEY_SECRET` - Backend only
+- `RAZORPAY_WEBHOOK_SECRET` - Backend only
+
+**Safe to commit:**
+- `EXPO_PUBLIC_SUPABASE_URL` - Public
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY` - Public (limited permissions)
+
+## 📚 Database Schema
+
+### Key Tables
+- `users` - Authentication & basic info
+- `profiles` - Full user profiles (incognito, verification, settings)
+- `profile_photos` - User photos (max 5, with primary)
+- `crushes` - One-directional crushes (pending/matched/expired)
+- `matches` - Mutual matches (unique pair)
+- `messages` - Real-time chat messages
+- `blocks` - User blocking
+- `reports` - Safety reports
+- `subscriptions` - Subscription status & trials
+- `payment_transactions` - Payment records
+- `colleges`, `departments`, `interests` - Reference data
+- `student_verifications` - College verification records
+
+### RLS Policies
+All tables have Row-Level Security enabled:
+- Users can read only their own private data
+- Users can read public profile data of non-blocked users
+- Messages accessible only to match participants
+- Admin users have special unrestricted access
+
+## 🎨 Design System
+
+### Colors
+- **Background**: `#0f0f0f` (near-black)
+- **Card**: `#1a1a1a` (charcoal)
+- **Accent**: `#ff006e` (electric pink/purple)
+- **Text Primary**: `#ffffff`
+- **Text Secondary**: `#b0b0b0` (gray)
+
+### Typography
+- **Display**: Montserrat/system bold (28-48px)
+- **Body**: System default (14-16px)
+- **Caption**: System (12px)
+
+### Spacing
+- Base unit: 4px
+- Padding/margins: 4, 8, 12, 16, 24px multiples
+
+## 🚢 Deployment
+
+### Mobile Apps
+
+**Android:**
+1. Generate signed APK/AAB via Expo
+2. Upload to Google Play Console
+3. Configure app signing
+
+**iOS:**
+1. Configure Apple Developer certificate
+2. Build via Expo or Xcode
+3. Submit to App Store
+
+### Admin Dashboard
+
+```bash
+cd apps/admin
 npm run build
-npx cap sync
-npx cap run android      # or: npx cap open android
-npx cap run ios          # macOS + Xcode only
+# Deploy build/ to Vercel, AWS, etc.
 ```
 
-Android needs the Android SDK and JDK 17+. iOS needs macOS, Xcode and
-CocoaPods.
+## 📈 Analytics
+
+**Tracked Events:**
+- signup_started
+- signup_completed
+- verify_student
+- profile_completed
+- crush_sent
+- mutual_match
+- message_sent
+- subscription_started
+- account_deleted
+- report_created
+
+**NOT Tracked:**
+- Actual chat content
+- Sensitive user data
+- Verification documents
+- Payment card details
+
+## ⚠️ Known Limitations
+
+1. **Incognito Mode Identity**: Cannot be guaranteed 100% if user voluntarily shares details in messages
+2. **Push Notifications**: Requires Expo push service setup for production
+3. **Payment Processing**: Razorpay integration requires India-specific setup
+4. **Video Chat**: Not implemented in MVP (text + photo messages only)
+5. **International**: Currently India-focused (₹ pricing, colleges)
+
+## 🤝 Contributing
+
+1. Create feature branch: `git checkout -b feature/xyz`
+2. Commit with clear messages
+3. Submit PR with description
+4. Ensure tests pass: `npm run test`
+5. Lint passes: `npm run lint`
+
+## 📄 License
+
+Proprietary - Do not distribute
 
 ---
 
-## How it works
-
-### This or that
-
-Every nudge is a choice between two things to do. Making it a decision turns a
-notification people swipe away into a five-second choice they act on — and
-either answer gets them off the chair, which is the whole point.
-
-**The good one** is an exercise or a reset: stretching, a quick set of squats,
-slow breathing, water, eye rest, daylight. Something that leaves you looser and
-in a better mood than it found you.
-
-**The mischievous one** is short and social: compliment whoever's beside you,
-start a staring contest, pull an ugly face in a selfie, insist on a high five.
-A handful of words next to a full drill, so the two never read as the same kind
-of ask and the choice is obvious at a glance.
-
-These involve other people on purpose — mischief performed alone is just
-another chore. The line they hold is that the other person is in on the joke,
-never the butt of it: nothing that insults how someone looks, nothing aimed at
-a stranger that would unsettle them, and no touching anyone who has not
-obviously invited it. A nudge that embarrasses the user is funny; one that
-embarrasses a bystander is something the user has to apologise for.
-
-Answering is mandatory. There is no dismiss, tapping outside does nothing, and
-the Android back gesture is swallowed while the card is up — the only way past
-it is to pick a side. Trying to escape shakes the card rather than ignoring the
-tap, because silence would read as the app being frozen.
-
-Which side people pick is tracked and shown on Home as a split bar.
-
-### The nudge pool: 5,000 per persona, no repeats
-
-A nudge is one task action rendered through one of the persona's phrasings, so
-the pool is every pairing: 100 actions x 50 phrasings = **5,000 distinct nudges
-per persona on each side** — 5,000 healthy and 5,000 mischievous. Composing them
-beats listing them — writing 5,000 lines by hand would mean 5,000 chances to
-write a dull one.
-
-The two sides run independent cursors. Sharing one would lock every task to the
-same partner for good; separate cursors mean the pairing reshuffles even though
-both pools are now the same size.
-
-Every one is used before any repeats. The order is a seeded shuffle, so only a
-seed and a cursor are stored rather than a 5,000-entry list, and the permutation
-is recomputed on demand. Exhausting the pool reshuffles with a new seed, so the
-next cycle isn't the same order again. Changing persona or categories changes
-the pool, which starts a fresh cycle.
-
-### Scheduling
-
-`src/lib/scheduling.ts` holds the time maths as pure functions — no Capacitor,
-no ambient `Date.now()`. That's deliberate: overnight active-hour windows and
-"push this nudge to tomorrow morning" are the fiddly parts, and they're much
-easier to reason about (and test) in isolation.
-
-- A nudge every **30 minutes** by default, adjustable from **10 minutes** to
-  **3 hours** in Settings. The stored value is clamped on read as well as on
-  write, so an out-of-range or corrupt value can never produce a nonsense
-  schedule.
-- If one would land outside active hours, it's pushed to the next window open.
-- Windows that wrap past midnight (22:00 → 06:00) work correctly.
-- Disabled categories are excluded from the pool.
-
-### Does it work with the app closed and the screen locked?
-
-Yes, and that is the normal case. Nudges are scheduled with the OS as real
-alarms, not kept alive by the app — they fire with the app backgrounded, killed
-or the phone locked, and survive a reboot (`LocalNotificationRestoreReceiver`).
-The Android channel is created at importance 5 with public lock-screen
-visibility, so the nudge appears as a heads-up banner and its text is readable
-on the lock screen. `allowWhileIdle` lets them through Doze.
-
-The thing that decides how long it keeps working is how many are queued, since
-whatever is queued is all the user gets until they next open the app. That is
-sized in days of coverage rather than as a fixed number — at the default
-30 minutes the queue spans roughly **2.5 days** of not opening the app, and it
-is topped up on every delivery, resume and settings change.
-
-Two limits are the platform's, not ours:
-
-- **iOS discards anything past 64 pending local notifications**, so the queue
-  caps at 60. At a 10-minute cadence that is about a day of coverage; at an hour
-  or more it is the full three days.
-- **Aggressive battery savers kill alarms** on some Android OEMs (Xiaomi, Oppo,
-  Vivo, Samsung). No amount of code fixes this — the user has to exempt the app.
-  See the device checklist in `docs/MANUAL_SETUP.md`.
-
-### Delivering a nudge while the app is open
-
-Three paths, all ending at the same persona card:
-
-1. **App backgrounded or closed** — the OS notification fires, and tapping it
-   reopens the app onto the card.
-2. **App open, native** — the plugin's foreground listener catches delivery.
-3. **App open, any platform** — a watcher ticks every 15s and shows anything
-   that has come due.
-
-The third exists because the first two don't cover an open app on the web at
-all, and are not guaranteed on every native foreground case: without it the
-countdown reaches zero and nothing happens.
-
-### Why a rolling buffer, not a strict chain
-
-The original spec called for chain scheduling — schedule one, and when it fires,
-schedule the next. **That breaks as soon as the OS evicts the app**, which for
-an app like this is most of the time: no JS is running to observe the delivery,
-so nothing re-arms and the nudges stop permanently.
-
-Instead, `src/lib/notifications.ts` keeps a rolling buffer of the next 12
-nudges, topped back up on every delivery, every app resume and every settings
-change. Twelve is far below iOS's hard cap of 64 pending local notifications,
-so the limit the spec was worried about is never approached. Each buffered nudge
-still gets its own independent random gap — the unpredictability is identical,
-it just survives the app being killed.
-
-### Stats that stay honest
-
-Because nudges are delivered while the app is dead, "nudges today" can't be
-counted by listening for events. Each scheduled nudge is mirrored to
-Preferences, and on resume `reconcileDelivered()` credits every planned nudge
-whose fire time has passed — so the counter and the streak are right even if you
-never open the app while one arrives.
-
-### Profile
-
-After a first sign-in, users set a name (required), an optional email, and a
-picture — one of 16 presets, a camera shot, or something from the gallery.
-
-Presets are stored as an id (`preset:unicorn`) and rendered from a gradient and
-emoji, so a chosen avatar costs a few bytes rather than a base64 blob. A custom
-photo is centre-cropped and re-encoded to a 256px JPEG before storage
-(`src/lib/image.ts`) — Preferences is built for small values, and a phone
-camera produces several MB, so this bound is not optional.
-
-Guests skip the mandatory profile: they explicitly declined to hand over
-details, and demanding a name straight afterwards would contradict that. They
-can still set one from Settings.
-
-### Sound
-
-Each persona has its own notification sound. When a nudge is delivered to a
-backgrounded app the OS plays it; when the app is already open the system
-suppresses its banner, so the in-app persona card plays the same sound itself
-(`src/lib/sound.ts`). Both paths honour the Settings sound toggle.
-
-The bundled sounds are synthesised placeholders — a short motif per persona,
-generated by `scripts/gen-sounds.mjs`. Swap in real audio before release.
-
-### Layout
-
-```
-src/
-  data/tasks.ts        100 exercise/reset drills + 100 short social dares
-  data/personas.ts     3 personas (Drill Sergeant, Nagging Mom, Mischievous
-                       Bestie), 50 in-character phrasings each
-  lib/
-    nudgePool.ts       pool maths + the no-repeat queue
-    auth.ts            phone OTP — stubbed, see docs/AUTH_SETUP.md
-    image.ts           profile photo capture + bounded re-encode
-    sound.ts           in-app nudge audio
-    scheduling.ts      pure time maths (no side effects)
-    notifications.ts   scheduling, channels, listeners, reconciliation
-    storage.ts         typed Preferences wrapper
-    billing.ts         subscription — stubbed, see docs/BILLING_DECISION.md
-    deeplink.ts        Razorpay return trip
-  state/AppContext.tsx single source of truth
-  screens/             Login, ProfileSetup, Home, Personas, Settings,
-                       Paywall, Onboarding
-  components/          UI primitives + the animated nudge card
-api/                   minimal Razorpay server (not deployed)
-docs/                  the decisions and manual steps left for you
-```
-
----
-
-## ⚠️ Before you ship
-
-**Billing is stubbed.** `stubProvider` in `src/lib/billing.ts` grants a 30-day
-subscription for free, locally, to anyone who taps the button. The paywall shows
-a visible developer-build warning while it's active. Since the whole app sits
-behind that button, this is the single most important thing to swap before
-release.
-
-**Sign-in is stubbed.** `src/lib/auth.ts` sends no SMS and accepts the code
-`123456` for any number that passes format validation. The OTP screen shows a developer-build banner while
-it's active. `docs/AUTH_SETUP.md` has the Firebase setup, and flags three things
-that bite at launch: account deletion is required by both stores once you have
-login, nothing syncs across devices yet, and "collects nothing" stops being true
-in your privacy labels.
-
-**There's an open decision about how to charge at all** — Apple and Google
-require their own billing for in-app digital subscriptions, which rules out
-Razorpay inside a store build. Both options are laid out in
-**`docs/BILLING_DECISION.md`**; I deliberately didn't pick one.
-
-Everything else outstanding is in **`docs/MANUAL_SETUP.md`** — Razorpay KYC,
-real notification sounds, icons, and the on-device test checklist.
-
----
-
-## Scripts
-
-| Command                       | Does                                       |
-| ----------------------------- | ------------------------------------------ |
-| `npm run dev`                 | Vite dev server                            |
-| `npm run build`               | Typecheck + production build               |
-| `npm run test`                | Scheduling logic tests                     |
-| `npm run lint`                | oxlint                                     |
-| `node scripts/gen-sounds.mjs` | Regenerate placeholder notification sounds |
+**Made with ❤️ for college students worldwide**

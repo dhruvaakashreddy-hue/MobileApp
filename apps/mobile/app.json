@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "CRUSH",
+    "slug": "crush-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f0f0f"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTabletMode": false,
+      "bundleIdentifier": "com.crushapp.mobile",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f0f0f"
+      },
+      "package": "com.crushapp.mobile",
+      "versionCode": 1
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow CRUSH to access your photos.",
+          "cameraPermission": "Allow CRUSH to access your camera.",
+          "microphonePermission": "Allow CRUSH to access your microphone."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ff006e"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow CRUSH to access your camera.",
+          "microphonePermission": "Allow CRUSH to access your microphone.",
+          "recordAudioAndroid": true
+        }
+      ]
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    }
+  }
+}
