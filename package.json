@@ -5,7 +5,6 @@
   "description": "CRUSH - 18+ College Dating App MVP",
   "workspaces": [
     "apps/mobile",
-    "apps/admin",
     "packages/types",
     "packages/ui",
     "packages/config"
