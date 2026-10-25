@@ -225,8 +225,9 @@ export async function getDropState(deps: Deps, viewerId: string | null): Promise
          from reservations r
          left join orders o on o.reservation_id = r.id
         where r.drop_id = $1 and r.profile_id = $2 and r.status in ('held', 'paying', 'paid')
+          and (r.status <> 'held' or r.expires_at > $3)
         limit 1`,
-      [drop.id, viewerId],
+      [drop.id, viewerId, now],
     );
     if (mine?.status === 'paid') yourOrderId = mine.order_id;
     else if (mine) yourHold = { reservationId: mine.id, expiresAt: mine.expires_at.toISOString() };

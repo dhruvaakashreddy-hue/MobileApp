@@ -7,6 +7,7 @@ import type { ProviderPayment } from '../server/adapters/payments.ts';
 import { createReservation, getReservation, releaseReservation } from '../server/services/reservations.ts';
 import { createPaymentOrder, handleRazorpayWebhook, requestOrderRefund, verifyCheckoutCallback } from '../server/services/payments.ts';
 import { sweep } from '../server/services/jobs.ts';
+import { getDropState } from '../server/services/catalogue.ts';
 import {
   createWorld,
   insertAddress,
@@ -154,6 +155,22 @@ describe('one unit, many buyers', { skip: SKIP_WITHOUT_DB }, () => {
 
     const bobHold = await createReservation(world.deps, bob.id, dropId);
     assert.equal(bobHold.status, 'held');
+  });
+
+  it('gives a buyer whose hold lapsed a fresh hold, even before any sweep has run', async () => {
+    const dropId = await liveDrop(world, { closesInMin: 20 });
+    const alice = await buyer(world, 'lapsed-again@example.com');
+    const first = await createReservation(world.deps, alice.id, dropId);
+
+    world.clock.advance(121_000); // the hold has lapsed, but no sweep has recorded it
+    const view = await getDropState(world.deps, alice.id);
+    assert.equal(view.availability?.yourHold, null, 'the public view no longer shows a lapsed hold');
+    assert.equal((await getReservation(world.deps, alice.id, first.id)).status, 'expired');
+
+    const again = await createReservation(world.deps, alice.id, dropId);
+    assert.notEqual(again.id, first.id, 'the lapsed hold is not handed back');
+    assert.equal(again.status, 'held');
+    assert.equal(await reservationStatus(world, first.id), 'expired');
   });
 
   it('lets a buyer release a hold they have not started paying for', async () => {

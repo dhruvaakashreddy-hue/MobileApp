@@ -467,6 +467,22 @@ export async function inspectDrop(deps: Deps, dropId: string): Promise<Record<st
   return { drop, reservations, orders, jobs, history };
 }
 
+export async function getSessionAdmin(deps: Deps, sessionId: string): Promise<Record<string, unknown>> {
+  const [session] = await deps.db.query(
+    'select id, name, status, window_opens_at, window_closes_at from sessions where id = $1',
+    [sessionId],
+  );
+  if (!session) throw fail.notFound('That session was not found.');
+  const drops = await deps.db.query(
+    `select d.id, d.position, d.status, d.sale_price_paise, d.quantity, d.release_at, d.closes_at,
+            p.id as product_id, p.name as product_name, p.condition
+       from drops d join products p on p.id = d.product_id
+      where d.session_id = $1 order by d.position`,
+    [sessionId],
+  );
+  return { session, drops };
+}
+
 export async function listOrders(deps: Deps, filter: { paymentStatus?: string | null }): Promise<unknown[]> {
   return deps.db.query(
     `select o.id, o.order_no, o.payment_status, o.fulfilment_status, o.total_paise, o.refunded_paise, o.paid_at,

@@ -89,6 +89,15 @@ export async function createReservation(deps: Deps, userId: string, dropId: stri
     if (phase === 'ended') throw fail.conflict('sale_ended', 'This sale has ended.');
     if (phase === 'sold') throw fail.conflict('sold_out', 'This drop is gone.');
 
+    const now = deps.clock.now();
+    // Lapsed holds are released before anything else. Otherwise a buyer whose hold ended, but
+    // which no sweep has reached yet, would be handed that dead hold back as if it were live.
+    await q.query(
+      `update reservations set status = 'expired', status_reason = 'hold_ended', updated_at = $2
+        where drop_id = $1 and status = 'held' and expires_at <= $2`,
+      [dropId, now],
+    );
+
     const [mine] = await q.query<{ id: string }>(
       `select id from reservations
         where drop_id = $1 and profile_id = $2 and status in ('held', 'paying', 'paid')
@@ -96,13 +105,6 @@ export async function createReservation(deps: Deps, userId: string, dropId: stri
       [dropId, userId],
     );
     if (mine) return mine.id;
-
-    const now = deps.clock.now();
-    await q.query(
-      `update reservations set status = 'expired', status_reason = 'hold_ended', updated_at = $2
-        where drop_id = $1 and status = 'held' and expires_at <= $2`,
-      [dropId, now],
-    );
     const [{ active }] = await q.query<{ active: number }>(
       "select coalesce(sum(quantity), 0)::int as active from reservations where drop_id = $1 and status in ('held', 'paying', 'paid')",
       [dropId],
@@ -146,15 +148,18 @@ async function loadRow(deps: Deps, userId: string, reservationId: string): Promi
 
 export async function getReservation(deps: Deps, userId: string, reservationId: string): Promise<ReservationView> {
   const row = await loadRow(deps, userId, reservationId);
+  const now = deps.clock.now();
   const priced = priceCheckout(
     { salePaise: row.sale_price_paise, shippingFeePaise: row.shipping_fee_paise, quantity: row.quantity },
     deps.config.currency,
   );
+  // A hold past its expiry reads as expired even before a sweep has written that down.
+  const lapsed = row.status === 'held' && row.expires_at.getTime() <= now.getTime();
   return {
     id: row.id,
     dropId: row.drop_id,
-    status: row.status,
-    statusReason: row.status_reason,
+    status: lapsed ? 'expired' : row.status,
+    statusReason: lapsed ? 'hold_ended' : row.status_reason,
     quantity: row.quantity,
     expiresAt: row.expires_at.toISOString(),
     serverNow: deps.clock.now().toISOString(),

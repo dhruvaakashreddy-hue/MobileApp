@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Silver over-ear headphones with dark ear cushions">
+  <defs>
+    <radialGradient id="spot" cx="50%" cy="42%" r="55%"><stop offset="0" stop-color="#d9ff43" stop-opacity="0.20"/><stop offset="1" stop-color="#d9ff43" stop-opacity="0"/></radialGradient>
+    <linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5f7f2"/><stop offset="0.5" stop-color="#b9c1ba"/><stop offset="1" stop-color="#7d867f"/></linearGradient>
+    <radialGradient id="cushion" cx="50%" cy="38%" r="62%"><stop offset="0" stop-color="#2a332c"/><stop offset="1" stop-color="#0b0e0c"/></radialGradient>
+  </defs>
+  <rect width="800" height="600" fill="#0e120f"/>
+  <rect width="800" height="600" fill="url(#spot)"/>
+  <ellipse cx="400" cy="528" rx="270" ry="24" fill="#000" opacity="0.45"/>
+  <path d="M190 330 C190 118, 610 118, 610 330" fill="none" stroke="url(#silver)" stroke-width="30" stroke-linecap="round"/>
+  <path d="M190 330 C190 142, 610 142, 610 330" fill="none" stroke="#0b0e0c" stroke-width="6" opacity="0.5"/>
+  <rect x="150" y="300" width="130" height="200" rx="60" fill="url(#silver)"/>
+  <rect x="520" y="300" width="130" height="200" rx="60" fill="url(#silver)"/>
+  <ellipse cx="215" cy="410" rx="50" ry="84" fill="url(#cushion)"/>
+  <ellipse cx="585" cy="410" rx="50" ry="84" fill="url(#cushion)"/>
+  <circle cx="650" cy="376" r="7" fill="#d9ff43"/>
+</svg>

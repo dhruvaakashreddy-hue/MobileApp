@@ -1,0 +1,106 @@
+@import 'tailwindcss';
+
+/* Design tokens. Dark theme only, per the brief. */
+@theme {
+  --color-bg: #090b0a;
+  --color-card: #141815;
+  --color-elevated: #1b211c;
+  --color-line: #2a332c;
+  --color-text: #f5f7f2;
+  --color-muted: #a5aea5;
+  --color-lime: #d9ff43;
+  --color-amber: #ffc768;
+  --color-danger: #ff8a80;
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif;
+  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-card: 24px;
+  --radius-control: 14px;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: #090b0a;
+  }
+
+  body {
+    @apply bg-bg font-sans text-text antialiased;
+    min-height: 100dvh;
+    background-image: radial-gradient(rgb(245 247 242 / 0.035) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-lime);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    line-height: 0.95;
+  }
+
+  ::selection {
+    background: var(--color-lime);
+    color: #090b0a;
+  }
+}
+
+/* Reusable component classes. Tailwind v4 defines these with @utility, so @apply can use them. */
+@utility shell {
+  @apply mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8;
+}
+
+@utility card {
+  @apply rounded-[24px] border border-line bg-card;
+}
+
+@utility eyebrow {
+  @apply text-xs font-semibold tracking-[0.14em] text-muted uppercase;
+}
+
+@utility btn {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] px-5 text-base font-semibold no-underline transition-colors select-none disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-lime text-[#090b0a] hover:bg-[#e6ff79];
+}
+
+@utility btn-secondary {
+  @apply btn border border-line bg-elevated text-text hover:border-muted;
+}
+
+@utility btn-ghost {
+  @apply btn px-3 text-muted hover:text-text;
+}
+
+@utility field {
+  @apply min-h-12 w-full rounded-[14px] border border-line bg-bg px-4 text-base text-text placeholder:text-muted/70 focus:border-lime;
+}
+
+@utility chip {
+  @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase;
+}
+
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

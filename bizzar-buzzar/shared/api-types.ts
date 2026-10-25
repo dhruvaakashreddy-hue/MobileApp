@@ -152,11 +152,14 @@ export interface OrderSummary {
   createdAt: string;
 }
 
-export interface MeResponse {
+/** Visitors get { profile: null } with a 200, so a signed-out browse does not log a failed request. */
+export interface SignedInMe {
   profile: { id: string; email: string; displayName: string | null; isAdmin: boolean };
   alerts: { pushEnabled: boolean; emailReminders: boolean };
   pushSubscribed: boolean;
 }
+
+export type MeResponse = SignedInMe | { profile: null };
 
 export interface ApiErrorBody {
   error: { code: string; message: string; details?: Record<string, unknown> };

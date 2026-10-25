@@ -36,6 +36,7 @@ import {
   listJobs,
   listOrders,
   listProducts,
+  getSessionAdmin,
   listSessions,
   requireAdmin,
   resolveCase,
@@ -208,7 +209,7 @@ export const routes: Route[] = [
   },
 
   // ── Account ───────────────────────────────────────────────────────────────────
-  { method: 'GET', path: '/me', handler: async (ctx) => getMe(ctx.deps, signedIn(ctx)) },
+  { method: 'GET', path: '/me', handler: async (ctx) => (ctx.viewer ? getMe(ctx.deps, ctx.viewer) : { profile: null }) },
   {
     method: 'PATCH',
     path: '/me',
@@ -428,6 +429,7 @@ export const routes: Route[] = [
     },
   },
   { method: 'GET', path: '/admin/sessions', handler: async (ctx) => { adminOf(ctx); return { sessions: await listSessions(ctx.deps) }; } },
+  { method: 'GET', path: '/admin/sessions/:id', handler: async (ctx) => { adminOf(ctx); return getSessionAdmin(ctx.deps, requireUuid(ctx.params.id, 'Session')); } },
   {
     method: 'POST',
     path: '/admin/sessions',
